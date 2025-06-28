@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}خطای سرور (500){% endblock %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="display-1 fw-bold text-danger">500</h1>
+            <i class="fas fa-cogs fa-5x text-info my-4 fa-spin"></i>
+            <h2 class="mb-4">اوه! یه چیزی درست کار نمی‌کنه.</h2>
+            <p class="lead mb-4">
+                مثل اینکه مشکلی در سرور پیش اومده. ما در حال بررسی هستیم. لطفا کمی بعد دوباره تلاش کنید.
+            </p>
+            <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg me-2">
+                <i class="fas fa-home me-2"></i> بازگشت به صفحه اصلی
+            </a>
+            <button onclick="location.reload();" class="btn btn-secondary btn-lg">
+                <i class="fas fa-sync-alt me-2"></i> تلاش مجدد
+            </button>
+            </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // مثلا یک انیمیشن ساده با jQuery
+    $(document).ready(function(){
+        // $('.fa-cogs').hide().fadeIn(1500); // fa-spin خودش انیمیشن داره
+    });
+</script>
+{% endblock %}

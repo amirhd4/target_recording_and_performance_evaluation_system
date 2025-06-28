@@ -1,0 +1,349 @@
+{# در فایل تمپلت monthly_scores_summary.html #}
+{% extends 'base.html' %}
+{% load static %} {# برای لود فایل های static #}
+{% load custom_filters %} {# اگر فیلترهای سفارشی دارید #}
+
+{% block title %}خلاصه امتیازات ماهانه{% endblock %}
+
+{% block content %}
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="copyToast" class="toast text-white bg-success border-0" role="alert" data-bs-delay="1500">
+            <div class="d-flex">
+            <div class="toast-body">
+                کپی شد ✅
+            </div>
+            </div>
+        </div>
+    </div>
+    <div class="container mt-4">
+        <div class="mb-4 text-center" style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <i class="fa-solid fa-chart-line" style="font-size: 28px; color: #418007;"></i>
+            <h1 style="margin: 0;">خلاصه امتیازات ماهانه کاربران</h1>
+        </div>
+            {% if error_message %}
+                <div class="alert alert-danger" role="alert">
+                    {{ error_message }}
+                 </div>
+            {% endif %}
+
+             {% if summary_data %}
+                       <div class="mb-4">
+                            {% if summary_data.user_summaries %}
+                                <a href="?year={{ summary_data.jdate.0 }}&month={{ summary_data.jdate.1 }}&export=excel" class="btn btn-outline-success">
+                                    <i class="fas fa-file-excel me-2"></i> بارگیری فایل اکسل
+                                </a>
+                            {% else %}
+                                <div class="m-5">
+                                    <h5 class="text-muted">🔭  متاسفانه داده ای برای ماه {{ summary_data.jdate.1 }} از سال {{ summary_data.jdate.0 }} یافت نشد!</h5>
+                                </div>
+                            {% endif %}
+
+                        </div>
+                         <div class="mb-4">
+                               <form method="get" class="row g-3 justify-content-center mb-4">
+                                    <div class="col-auto">
+                                        <label>
+                                            <input type="number" name="year" class="form-control" placeholder="سال شمسی" value="{{ summary_data.jdate.0 }}">
+                                        </label>
+                                    </div>
+                                    <div class="col-auto">
+                                        <label>
+                                            <input type="number" name="month" class="form-control" placeholder="ماه" value="{{ summary_data.jdate.1 }}">
+                                        </label>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="submit" class="btn btn-primary">نمایش</button>
+                                    </div>
+                               </form>
+                         </div>
+
+                        {# بخش آمار کلی بر اساس سطح دسترسی #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>آمار کلی بر اساس سطح دسترسی</h5>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-bordered table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>سطح دسترسی</th>
+                                <th>تعداد کاربران (با امتیاز)</th> {# تعداد کاربرانی که در این ماه امتیاز دریافت کرده‌اند #}
+                                <th>امتیاز نداده اند</th> {# تعداد کاربرانی که باید امتیاز می دادند ولی نداده اند #}
+                                <th>مجموع امتیاز محاسبه شده کل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for level_stats, no_score_givers in summary_data.overall_stats_by_access_level %}
+                                <tr>
+                                    <td>{{ level_stats.name }}</td>
+                                    <td>{{ level_stats.count }}</td>
+                                    <td>{{ no_score_givers.0.count|default:"0" }}</td>
+                                    <td>{{ level_stats.total_score_sum }}</td>
+                                </tr>
+                            {% endfor %}
+                            <tr>
+                                <td>
+                                    <strong>مجموع</strong>
+                                </td>
+                                <td class="text-primary fw-bold copyable" style="cursor: pointer;">
+                                    {{ summary_data.overall_stats_by_access_level.0.0.sum }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+                        {# بخش آمار کلی بر اساس کاربرانی که امتیاز نداده اند #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>آمار کلی بر اساس کاربرانی که امتیاز نداده اند</h5>
+                </div>
+                <div class="card-body">
+                    <div style="max-height: 300px; overflow-y: auto;"> {# ارتفاع ثابت برای اسکرول در صورت طولانی شدن لیست #}
+                        <table class="table table-bordered table-striped mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">ردیف</th>
+                                    <th>نام</th>
+                                    <th>نوع کاربر</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in summary_data.no_score_givers_users %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>{{ user.first_name }} {{ user.last_name }}</td>
+                                            <td>
+                                                {% if user.access_level == 1 %}مدیر میانی
+                                                {% elif user.access_level == 2 %}کارمند برتر
+                                                {% elif user.access_level == 3 %}کارمند عادی
+                                                {% elif user.access_level == -1 %} هئیت مدیره (مدیر میانی)
+                                                {% else %}سطح {{ user.access_level }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                {% endfor %}
+                                {% comment %} اگر لیست no_score_givers_users خالی باشد و به صورت zip شده با count ارسال شده باشد، این بخش ممکن است نیاز به بازنگری داشته باشد {% endcomment %}
+                                {% if not summary_data.no_score_givers_users %}
+                                    <tr>
+                                        <td colspan="3" class="text-center">همه کاربران امتیاز ماهانه خود را ثبت کرده‌اند یا سطوح دسترسی مرتبط (۱، ۲، ۳) وجود ندارد.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+                        {# بخش خلاصه امتیازات هر کاربر #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>خلاصه امتیازات هر کاربر</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;"> {# برای نمایش بهتر در صفحه های کوچک #}
+                        <table class="table table-bordered table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">ردیف</th>
+                                    <th>کاربر</th>
+                                    <th>سطح دسترسی</th>
+                                    <th>امتیازات بر اساس نوع</th>
+                                    <th>مجموع امتیاز محاسبه شده</th> {# ستون اصلی امتیاز محاسبه شده #}
+                                    {# --- ستون جدید برای تنظیم هیئت مدیره --- #}
+                                    {% if request.user.access_level == -1 %} {# فقط برای هیئت مدیره نمایش داده شود #}
+                                    <th>تنظیم هیئت مدیره</th>
+                                    <th>مجموع نهایی امتیاز</th> {# ستون جدید برای مجموع با تنظیم #}
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user_summary in summary_data.user_summaries %}
+                                    <tr data-user-id="{{ user_summary.user.id }}"> {# اضافه کردن data-user-id برای جاوااسکریپت #}
+                                        <td>{{forloop.counter}}</td>
+                                        <td>{{ user_summary.user.first_name }} {{ user_summary.user.last_name }}</td>
+                                        <td>
+                                            {% if user_summary.access_level == 1 %}مدیر میانی
+                                            {% elif user_summary.access_level == 2 %}کارمند برتر
+                                            {% elif user_summary.access_level == 3 %}کارمند عادی
+                                            {% else %}سطح {{ user_summary.access_level }}
+                                            {% endif %}
+                                        </td>
+                                        <td> {# ستون امتیازات بر اساس نوع #}
+                                            <ul>
+                                                {% for score_type, score_value in user_summary.scores_by_type.items %}
+                                                <li>
+                                                    {% if score_type == "1" %}تحقق اهداف
+                                                    {% elif score_type == "2" %}مسئولیت ها
+                                                    {% else %}مدیریت دانش
+                                                    {% endif %}
+                                                    : {{ score_value }}
+                                                </li>
+                                                {% empty %}
+                                                    <li>بدون امتیاز در این ماه</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </td>
+                                        <td class="total-monthly-score">{{ user_summary.total_monthly_score }}</td> {# ستون امتیاز محاسبه شده #}
+
+                                        {# --- سلول های جدید برای تنظیم هیئت مدیره --- #}
+                                        {% if request.user.access_level == -1 %}
+                                        <td class="board-adjustment-cell">
+                                            <div class="d-flex justify-content-center align-items-center"> {# استفاده از فلکس برای کنار هم قرار دادن دکمه و عدد #}
+                                                <button class="btn btn-sm btn-outline-secondary adjust-score-btn me-2" data-delta="1" title="افزایش امتیاز تنظیم شده">+</button> {# کلاسهای بوت استرپ و فاصله #}
+                                                <span class="board-adjustment-value fw-bold" style="min-width: 40px; text-align: center;">{{ user_summary.board_adjustment|floatformat:0|default:"0" }}</span>
+                                                <button class="btn btn-sm btn-outline-secondary adjust-score-btn ms-2" data-delta="-1" title="کاهش امتیاز تنظیم شده">-</button> {# کلاسهای بوت استرپ و فاصله #}
+                                            </div>
+                                        </td>
+                                        <td class="total-monthly-score-adjusted fw-bold">{{ user_summary.total_monthly_score_adjusted|default:"0.000" }}</td> {# ستون مجموع نهایی با تنظیم #}
+                                        {% endif %}
+                                    </tr>
+                                {% empty %} {# اگر لیست user_summaries خالی باشد #}
+                                    <tr>
+                                        <td colspan="{% if request.user.access_level == -1 %}7{% else %}5{% endif %}" class="text-center">داده امتیاز ماهانه برای نمایش وجود ندارد.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+              {% elif summary_data is None and not error_message %}
+                        <div class="alert alert-info" role="alert">
+                                  داده‌ای برای نمایش وجود ندارد یا خطایی در واکشی داده‌ها رخ داده است.
+                        </div>
+              {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'scripts/decimal.min.js' %}"></script> {# مطمئن شوید مسیر صحیح است #}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+    const toastElement = document.getElementById('copyToast');
+    const toast = new bootstrap.Toast(toastElement);
+
+    document.querySelectorAll(".copyable").forEach(function (el) {
+        el.addEventListener("click", function () {
+            const text = this.textContent.trim();
+
+            // تلاش برای کپی با روش امن
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => {
+                    toast.show();
+                }).catch(() => alert("خطا در کپی ❌"));
+            } else {
+                // fallback برای مرورگرهایی که clipboard ندارن
+                const textarea = document.createElement("textarea");
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand("copy");
+                    toast.show();
+                } catch (err) {
+                    alert("خطا در کپی ❌");
+                }
+                document.body.removeChild(textarea);
+            }
+        });
+    });
+    // دریافت CSRF token
+    const getCookie = (name) => {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrfToken = getCookie('csrftoken'); // دریافت از کوکی
+
+    const adjustButtons = document.querySelectorAll('.adjust-score-btn');
+
+    // ** اضافه کردن این دو خط برای دریافت سال و ماه جاری از خلاصه داده‌ها **
+    const currentYear = {{ summary_data.jdate.0 }};
+    const currentMonth = {{ summary_data.jdate.1 }};
+
+    adjustButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const row = this.closest('tr');
+            const userId = row.dataset.userId;
+            const delta = parseFloat(this.dataset.delta);
+
+            if (!userId || isNaN(delta)) {
+                console.error("Missing or invalid user ID or delta");
+                alert("خطا در اطلاعات دکمه یا کاربر.");
+                return;
+            }
+
+            const adjustmentCell = this.closest('.board-adjustment-cell');
+            const buttonsInCell = adjustmentCell.querySelectorAll('.adjust-score-btn');
+            buttonsInCell.forEach(btn => btn.disabled = true);
+
+            const url = "{% url 'monthlyscores-adjust-board-score' %}";
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    delta: delta,
+                    // ** ارسال سال و ماه به API **
+                    year: currentYear,
+                    month: currentMonth
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    buttonsInCell.forEach(btn => btn.disabled = false);
+                    return response.json().then(data => {
+                        throw new Error(data.detail || response.statusText || 'خطا در تنظیم امتیاز.');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Adjustment successful:", data);
+
+                const adjustmentValueSpan = adjustmentCell.querySelector('.board-adjustment-value');
+                const totalMonthlyScoreCell = row.querySelector('.total-monthly-score');
+                const totalMonthlyScoreAdjustedCell = row.querySelector('.total-monthly-score-adjusted');
+
+                if (adjustmentValueSpan && totalMonthlyScoreCell && totalMonthlyScoreAdjustedCell) {
+                    const currentTotalScore = new Decimal(totalMonthlyScoreCell.innerText);
+                    const newAdjustment = new Decimal(data.new_adjustment_value);
+
+                    adjustmentValueSpan.innerText = newAdjustment.toFixed(3);
+
+                    const newAdjustedTotal = currentTotalScore.plus(newAdjustment);
+                    totalMonthlyScoreAdjustedCell.innerText = newAdjustedTotal.toFixed(3);
+
+                    buttonsInCell.forEach(btn => btn.disabled = false);
+                } else {
+                    console.error("Could not find required table cells to update.");
+                }
+            })
+            .catch(error => {
+                console.error("Error during adjustment:", error);
+                alert("خطا در تنظیم امتیاز: " + error.message);
+                buttonsInCell.forEach(btn => btn.disabled = false);
+            });
+        });
+    });
+});
+    </script>
+{% endblock %}

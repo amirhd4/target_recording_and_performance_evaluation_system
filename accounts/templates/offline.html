@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <i class="fa-solid fa-wifi-slash fa-5x text-muted mb-4"></i>
+    <h2 class="mt-4">شما آفلاین هستید!</h2>
+    <p class="text-muted">به نظر می‌رسه اتصال اینترنت شما قطع شده. لطفاً بعداً دوباره تلاش کنید.</p>
+    <a href="/dashboard" class="btn btn-primary mt-3">بازگشت به صفحه اصلی</a>
+</div>
+{% endblock %}

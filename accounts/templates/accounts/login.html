@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+    <style>
+        /* Custom styles for responsiveness */
+        @media (max-width: 576px) {
+            .login-card {
+                /* Remove fixed max-width on very small screens */
+                max-width: 95% !important; /* Use a percentage for flexibility */
+                margin: 0 auto; /* Center the card */
+            }
+        }
+         @media (min-width: 577px) and (max-width: 768px) {
+            .login-card {
+                max-width: 80% !important; /* Slightly wider on small tablets */
+                margin: 0 auto; /* Center the card */
+            }
+        }
+        /* Default style for larger screens (md and up) */
+        .login-card {
+             max-width: 400px; /* Keep the original max-width for larger screens */
+        }
+    </style>
+    <div class="container mt-5">
+        {# Apply the custom class 'login-card' here instead of inline style #}
+        <div class="card shadow-sm p-4 mx-auto login-card">
+            <h3 class="text-center mb-4">ورود به حساب</h3>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger" role="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">نام کاربری</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">رمز عبور</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">ورود</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

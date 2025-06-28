@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}دسترسی غیرمجاز (403){% endblock %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="display-1 fw-bold text-danger">403</h1>
+            <i class="fas fa-user-lock fa-5x text-warning my-4"></i>
+            <h2 class="mb-4">اوه! مثل اینکه اجازه ورود به اینجا رو ندارید.</h2>
+            <p class="lead mb-4">
+                متاسفانه شما دسترسی لازم برای مشاهده این صفحه رو ندارید. شاید اشتباهی وارد این بخش شدید.
+            </p>
+            <a href="{% url 'dashboard' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-home me-2"></i> بازگشت به صفحه اصلی
+            </a>
+            </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // مثلا یک انیمیشن ساده با jQuery
+    $(document).ready(function(){
+        $('.fa-user-lock').hide().fadeIn(2000);
+    });
+</script>
+{% endblock %}

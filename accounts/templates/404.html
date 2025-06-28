@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}صفحه پیدا نشد (404){% endblock %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <h1>خطا ۴۰۴ - صفحه پیدا نشد</h1>
+    <p>متاسفیم، صفحه‌ای که دنبال آن بودید در اینجا یافت نشد.</p>
+    {% if user.is_authenticated %}
+        <p><a href="{% url 'dashboard' %}" class="btn btn-primary">بازگشت به داشبورد</a></p> {# یا به صفحه اصلی سایت شما #}
+    {% else %}
+        <p><a href="{% url 'login' %}" class="btn btn-primary">صفحه ورود</a></p> {# یا به صفحه اصلی سایت شما #}
+    {% endif %}
+    {# می توانید عکس یا المان های دیگری هم اینجا اضافه کنید #}
+</div>
+{% endblock %}

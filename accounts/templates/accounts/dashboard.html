@@ -1,0 +1,745 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+{% block title %}میزکار ثبت اهداف{% endblock %}
+{% block content %}
+    <h2 class="gradient-text">سلام {{ request.user.first_name }} {{ request.user.last_name }}</h2>
+    {% csrf_token %}
+
+    {# --- بخش امتیازدهی روزانه امروز (ساده شده) --- #}
+    {% if subordinates %}
+        <div class="container">
+            <div class="card shadow rounded-4">
+                <div class="card-header bg-primary text-white fs-5 fw-bold">
+                    ثبت امتیاز روزانه - {{ today_year }}/{{ today_month }}/{{ today_day }}
+                </div>
+                <div class="table-responsive" style="overflow-y: auto; max-height: 500px;">
+                    <table class="table table-bordered text-center align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>کارمند</th>
+                                <th>هدف ثبت شده</th>
+                                <th>امتیاز امروز</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in subordinates %}
+                                <tr data-employee-id="{{ item.subordinate.id }}">
+                                    <td>{{ item.subordinate.first_name }} {{ item.subordinate.last_name }}</td>
+                                    <td>
+                                        {% if item.target.content %}
+                                            {{ item.target.content }}
+                                        {% else %}
+                                            <span class="text-muted">هدف کاربر ثبت نشده است</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="score-cell">
+                                        {# --- منطق نمایش ساده شده --- #}
+                                        {% if item.subordinate.id in today_daily_scores %}
+                                            <span class="text-success">✅ ثبت شده ({{ today_daily_scores|get_dict_value:item.subordinate.id }})</span>
+                                        {% else %}
+                                            {% if item.target.content %}
+                                                <button class="btn btn-sm btn-outline-primary daily-score-init-btn" data-employee-id="{{ item.subordinate.id }}">تایید و ثبت امتیاز</button>
+                                            {% endif %}
+                                            <div class="daily-score-controls" style="display: none; justify-content: center; align-items: center;">
+                                                <label>
+                                                    <input type="range" min="0" max="10" step="1" value="0" class="daily-score-slider">
+                                                </label>
+                                                <span class="score-value fw-bold ms-2">0</span>
+                                                <button class="btn btn-sm btn-success daily-score-submit-btn ms-2" data-employee-id="{{ item.subordinate.id }}">ثبت</button>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {# --- بخش supervisors حذف شد چون دیگر کاربردی ندارد --- #}
+
+    {% if should_show_missed_scores_section %}
+        <div class="container">
+            <div class="card shadow rounded-4">
+                <div class="card-header bg-warning text-dark fs-5 fw-bold">
+                    ثبت امتیاز روزهای گذشته (ماه جاری شمسی)
+                </div>
+                <div style="overflow-y: auto; max-height: 400px;" class="table-responsive mb-5">
+                     <table class="table table-bordered text-center align-middle" id="missed-scores-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>تاریخ (شمسی)</th>
+                                <th>کارمند</th>
+                                <th>هدف ثبت شده در آن روز</th>
+                                <th>ثبت امتیاز</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in missed_daily_scores_opportunities %}
+                                <tr data-employee-id="{{ item.employee_id }}" data-score-date="{{ item.gregorian_date_to_submit }}">
+                                    <td>{{ item.jalali_date_str }}</td>
+                                    <td>{{ item.subordinate_name }}</td>
+                                    <td>
+                                        {% if item.target_content %}
+                                            {{ item.target_content }}
+                                        {% else %}
+                                            <span class="text-muted small">هدفی برای این روز توسط کارمند ثبت نشده</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="missed-score-cell">
+                                        {% if item.target_content %}
+                                            <button class="btn btn-sm btn-outline-info missed-daily-score-init-btn">ثبت امتیاز</button>
+                                            <div class="missed-daily-score-controls" style="display: none; justify-content: center; align-items: center;">
+                                                <label>
+                                                    <input type="range" min="0" max="10" step="1" value="0" class="missed-daily-score-slider" style="width: 100px;">
+                                                </label>
+                                                <span class="missed-score-value fw-bold ms-2 me-2" style="min-width: 20px;">0</span>
+                                                <button class="btn btn-sm btn-primary missed-daily-score-submit-btn">ثبت</button>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">موردی برای امتیازدهی روزهای گذشته یافت نشد.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                 </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if not user.access_level|in_list:"0,-1" %}
+        <div class="container">
+            <div class="card shadow rounded-4">
+                <div class="card-header bg-primary text-white fs-5 fw-bold">
+                    اهداف شما در ماه {{ current_month }} از سال {{ current_year }}
+                </div>
+                {% if my_scores_targets %} {# اطمینان از این نام #}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 120px;">تاریخ ثبت</th>
+                                        <th>متن هدف</th>
+                                        <th>امتیاز</th>
+                                        <th>زمان ثبت امتیاز</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for target, score in my_scores_targets %} {# اطمینان از این حلقه #}
+                                        <tr>
+                                            {# target.submission_date حالا یک شیء jdatetime با timezone است #}
+                                            <td>{{ target.submission_date|date:"Y/m/d H:i:s" }}</td>
+                                            <td>{{ target.content }}</td>
+                                            {% if score %}
+                                                <td>{{ score.value }}</td>
+                                                {# score.created_at حالا یک شیء jdatetime با timezone است #}
+                                                <td>{{ score.created_at|date:"H:i:s" }}</td>
+                                            {% else %}
+                                                <td>امتیاز شما ثبت نشده</td>
+                                                <td></td>
+                                            {% endif %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td class="text-end fw-bold">مجموع</td>
+                                        <td></td>
+                                        <td class="fw-bold">{{ my_sum_scores }}</td> {# اطمینان از این نام #}
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="text-center mt-3">
+                            <p class="lead fw-bold">تعداد اهداف ثبت شده این ماه: {{ monthly_targets_count }}</p> {# اطمینان از این نام #}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info text-center" role="alert">
+                            شما تا کنون هدفی برای این ماه ثبت نکرده‌اید.
+                        </div>
+                    {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if users %}
+        <div class="container">
+        <div class="card shadow rounded-4">
+            <div class="card-header bg-primary text-white fs-5 fw-bold">
+                امتیازات ماهانه ({{ year }}/{{ month }})
+            </div>
+            <form method="post" id="monthlyScoreForm">
+                {% csrf_token %} {# CSRF token moved inside the form #}
+                <div style="max-height: 500px; overflow-y: auto;" class="table-responsive">
+                    <table class="table table-bordered text-center align-middle">
+                        <thead class="table-light" style="position: sticky; top: 0; z-index: 2;">
+                            <tr>
+                                <th>کاربر</th>
+                                <th>تحقق اهداف</th>
+                                {% if access_level <= 2 %}<th>مسئولیت‌ها</th>{% endif %}
+                                {% if access_level|in_list:"1,-1,0" %}<th>مدیریت دانش</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                                <tr>
+                                    <td>{{ user.first_name }} {{ user.last_name }}</td>
+                                    <td>
+                                        {% if 1 in existing_scores_by_user|get_dict_value:user.id %}
+                                            <span class="text-success">✅ ثبت شده ({% get_score score_dict user.id 1 %})</span>
+                                        {% else %}
+                                            <div class="slider-container">
+                                                <button type="button" class="slider-button slider-down" data-slider="value_{{ user.id }}_1" data-score-type="1" data-user-id="{{ user.id }}">
+                                                    <i class="fas fa-circle-minus icon-remove"></i>
+                                                </button>
+                                                <label>
+                                                    <input type="range" name="value_{{ user.id }}_1" min="0" max="100" step="1"
+                                                        value="{% get_score score_dict user.id 1 %}"
+                                                        data-target="{{ user.id }}" data-type="1" class="monthly-score-slider">
+                                                </label>
+                                                <button type="button" class="slider-button slider-up" data-slider="value_{{ user.id }}_1" data-score-type="1" data-user-id="{{ user.id }}">
+                                                    <i class="fas fa-circle-plus icon-add"></i>
+                                                </button>
+                                                <span class="score-value fw-bold ms-2">{% get_score score_dict user.id 1 %}</span>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    {% if access_level <= 2 %}
+                                        <td>
+                                            {% if 2 in existing_scores_by_user|get_dict_value:user.id %}
+                                                <span class="text-success">✅ ثبت شده ({% get_score score_dict user.id 2 %})</span>
+                                            {% else %}
+                                                <div class="slider-container">
+                                                    <button type="button" class="slider-button slider-down" data-slider="value_{{ user.id }}_2" data-score-type="2" data-user-id="{{ user.id }}">
+                                                          <i class="fas fa-circle-minus icon-remove"></i>
+                                                    </button>
+                                                    <label>
+                                                        <input type="range" name="value_{{ user.id }}_2" min="0" max="100" step="1"
+                                                            value="{% get_score score_dict user.id 2 %}"
+                                                            data-target="{{ user.id }}" data-type="2" class="monthly-score-slider">
+                                                    </label>
+                                                    <button type="button" class="slider-button slider-up" data-slider="value_{{ user.id }}_2" data-score-type="2" data-user-id="{{ user.id }}">
+                                                        <i class="fas fa-circle-plus icon-add"></i>
+                                                    </button>
+                                                    <span class="score-value fw-bold ms-2">{% get_score score_dict user.id 2 %}</span>
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
+                                    {% if access_level|in_list:"1,-1,0" %}
+                                        <td>
+                                            {% if 3 in existing_scores_by_user|get_dict_value:user.id %}
+                                                <span class="text-success">✅ ثبت شده ({% get_score score_dict user.id 3 %})</span>
+                                            {% else %}
+                                                <div class="slider-container">
+                                                    <button type="button" class="slider-button slider-down" data-slider="value_{{ user.id }}_3" data-score-type="3" data-user-id="{{ user.id }}">
+                                                         <i class="fas fa-circle-minus icon-remove"></i>
+                                                    </button>
+                                                    <label>
+                                                        <input type="range" name="value_{{ user.id }}_3" min="0" max="100" step="1"
+                                                            value="{% get_score score_dict user.id 3 %}"
+                                                            data-target="{{ user.id }}" data-type="3" class="monthly-score-slider">
+                                                    </label>
+                                                    <button type="button" class="slider-button slider-up" data-slider="value_{{ user.id }}_3" data-score-type="3" data-user-id="{{ user.id }}">
+                                                          <i class="fas fa-circle-plus icon-add"></i>
+                                                    </button>
+                                                    <span class="score-value fw-bold ms-2">{% get_score score_dict user.id 3 %}</span>
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if not existing_scores_by_user %}
+                            <tfoot style="position: sticky; bottom: 0; background: white; z-index: 1;">
+                                <tr>
+                                    <td class="text-end fw-bold">مجموع</td>
+                                    <td data-total-score-type="1" class="fw-bold">0</td>
+                                    {% if access_level <= 2 %}
+                                        <td data-total-score-type="2" class="fw-bold">0</td>
+                                    {% endif %}
+                                    {% if access_level|in_list:"1,-1,0" %}
+                                        <td data-total-score-type="3" class="fw-bold">0</td>
+                                    {% endif %}
+                                </tr>
+                            </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+{#            TODO: Change here to disable button #}
+                {% if not existing_scores_by_user %}
+                    {% if users %}
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-success px-4">💾 ثبت امتیاز ماهانه</button>
+                        </div>
+                    {% else %}
+                        <strong class="text-danger-emphasis">با توجه به تاریخ ورود شما به شرکت، شما برای این ماه مجاز به ثبت امتیاز نیستید!</strong>
+                    {% endif %}
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    {% else %}
+        {# TODO: showing hint message #}
+    {% endif %}
+    <style>
+        .container {
+            margin-top: 2rem;
+        }
+        .icon-remove {
+            transition: transform 0.3s ease, fill 0.3s ease;
+            cursor: pointer;
+        }
+        .icon-remove:active {
+            transform: scale(1.2) rotate(-15deg);
+            fill: #FFD6D6;
+        }
+        .icon-add {
+            transition: transform 0.3s ease, fill 0.3s ease;
+            cursor: pointer;
+        }
+        .icon-add:active {
+            transform: rotate(90deg) scale(1.2);
+            fill: #C8FAD2;
+        }
+        #table-responsive, .table-responsive {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .table-responsive table td {
+            font-size: 0.9rem;
+        }
+        {#.total-exceeded {#}
+        {#    color: red;#}
+        {#    font-weight: bolder;#}
+        {#{ #}
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Added to center the controls */
+        }
+
+        .slider-button {
+            background-color: transparent;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: color 0.3s ease;
+            font-size: 1.2em;
+            color: #555;
+            display: flex; /* Use flex to center the icon */
+            align-items: center; /* Center the icon vertically */
+            justify-content: center; /* Center the icon horizontally */
+        }
+
+        .slider-button:hover {
+            color: #007bff;
+        }
+
+        .slider-button:active {
+            color: #0056b3;
+        }
+        
+        .slider-button:disabled {
+            color: #aaa;
+            cursor: not-allowed;
+        }
+
+        .slider-button:disabled:hover {
+            color: #aaa;
+        }
+        .slider-button i {
+            display: inline-block;
+        }
+         .score-value {
+            min-width: 30px; /* Give the score span a fixed width to prevent layout shifts */
+            text-align: center; /* Center the score text */
+        }
+    </style>
+
+    <script>
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const monthlyScoreSliders = document.querySelectorAll(".monthly-score-slider");
+        const monthlyScoreForm = document.getElementById("monthlyScoreForm");
+        // Pass access_level from Django context to JavaScript, safely handling None
+        const userAccessLevel = {{ user.access_level|default:"null"|safe }};
+    
+        // Function to update the displayed score and button states for a single slider
+        function updateSliderDisplayAndButtons(slider) {
+            const sliderContainer = slider.closest('.slider-container');
+            if (!sliderContainer) return; // Exit if container not found
+
+            const scoreValueSpan = sliderContainer.querySelector('.score-value');
+            const upButton = sliderContainer.querySelector('.slider-button.slider-up');
+            const downButton = sliderContainer.querySelector('.slider-button.slider-down');
+            const currentValue = parseInt(slider.value);
+            const max = parseInt(slider.max);
+            const min = parseInt(slider.min);
+
+            if (scoreValueSpan) {
+                scoreValueSpan.innerText = currentValue;
+            }
+
+            if (upButton) {
+                upButton.disabled = currentValue >= max;
+            }
+
+            if (downButton) {
+                downButton.disabled = currentValue <= min;
+            }
+        }
+
+        function handleMonthlySliderInput(event) {
+            const changedSlider = event.target;
+            const scoreType = changedSlider.dataset.type;
+            updateSliderDisplayAndButtons(changedSlider); // Update display and buttons for the changed slider
+            updateMonthlyColumnTotalAndMaxes(scoreType);
+        }
+
+        function updateMonthlyColumnTotalAndMaxes(scoreType) {
+            const slidersInColumn = document.querySelectorAll(`.monthly-score-slider[data-type="${scoreType}"]`);
+            let currentTotal = 0;
+            slidersInColumn.forEach(slider => {
+                currentTotal += parseInt(slider.value);
+            });
+
+            const totalDisplayElement = document.querySelector(`[data-total-score-type="${scoreType}"]`);
+            if (totalDisplayElement) {
+                totalDisplayElement.innerText = currentTotal;
+                if (currentTotal > 100) {
+                    totalDisplayElement.classList.add('total-exceeded');
+                } else {
+                    totalDisplayElement.classList.remove('total-exceeded');
+                }
+            }
+
+            // Recalculate and update max for all sliders in the column
+            slidersInColumn.forEach(slider => {
+                const sliderCurrentValue = parseInt(slider.value);
+                // The calculation for newMax was correct, no change needed here.
+                let newMax = sliderCurrentValue + (100 - currentTotal);
+                newMax = Math.min(100, newMax);
+                newMax = Math.max(sliderCurrentValue, newMax);
+                slider.max = newMax;
+                 // After updating max, update the display and button states for this slider
+                updateSliderDisplayAndButtons(slider);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (monthlyScoreForm) {
+                monthlyScoreSliders.forEach(slider => {
+                    slider.addEventListener("input", handleMonthlySliderInput);
+                    // Initial update of display and buttons on page load
+                    updateSliderDisplayAndButtons(slider);
+                    console.log(`Monthly Slider Initial Value - User: ${slider.dataset.target}, Type: ${slider.dataset.type}, Value: ${slider.value}`);
+                });
+
+                const monthlyScoreTypes = new Set();
+                monthlyScoreSliders.forEach(slider => {
+                    monthlyScoreTypes.add(slider.dataset.type);
+                });
+
+                monthlyScoreTypes.forEach(scoreType => {
+                    updateMonthlyColumnTotalAndMaxes(scoreType);
+                });
+            }
+
+            document.querySelectorAll(".missed-daily-score-init-btn").forEach(button => {
+            button.addEventListener("click", function() {
+                const row = this.closest('tr');
+                const controlsContainer = row.querySelector('.missed-daily-score-controls');
+                this.style.display = 'none'; // مخفی کردن دکمه "ثبت امتیاز"
+                if (controlsContainer) {
+                    controlsContainer.style.display = 'flex'; // نمایش اسلایدر و دکمه ثبت نهایی
+                    const slider = controlsContainer.querySelector('.missed-daily-score-slider');
+                    const valueSpan = controlsContainer.querySelector('.missed-score-value');
+                    if (slider && valueSpan) {
+                        valueSpan.innerText = slider.value; // مقدار اولیه اسلایدر را نمایش بده
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll(".missed-daily-score-slider").forEach(slider => {
+            slider.addEventListener("input", function() {
+                const valueSpan = this.closest('.missed-daily-score-controls').querySelector('.missed-score-value');
+                if (valueSpan) {
+                    valueSpan.innerText = this.value; // به‌روزرسانی نمایش مقدار اسلایدر
+                }
+            });
+        });
+
+        document.querySelectorAll(".missed-daily-score-submit-btn").forEach(button => {
+            button.addEventListener("click", function() {
+                const submitButton = this; // دکمه ثبت نهایی که کلیک شده
+                const row = submitButton.closest('tr');
+                const employeeId = row.dataset.employeeId;
+                // `data-score-date` حاوی تاریخ میلادی YYYY-MM-DD است
+                const scoreDateForSubmission = row.dataset.scoreDate; 
+                const controlsContainer = submitButton.closest('.missed-daily-score-controls');
+                const slider = controlsContainer.querySelector('.missed-daily-score-slider');
+                const scoreValue = parseInt(slider.value);
+                const initialButton = row.querySelector('.missed-daily-score-init-btn');
+
+                // غیرفعال کردن کنترل‌ها برای جلوگیری از کلیک‌های متعدد
+                submitButton.disabled = true;
+                slider.disabled = true;
+                if (initialButton) initialButton.disabled = true; 
+
+                fetch("{% url 'submit_daily_score' %}", { // استفاده از همان URL قبلی
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken // اطمینان از تعریف csrftoken در اسکوپ
+                    },
+                    body: JSON.stringify({
+                        employee_id: employeeId,
+                        value: scoreValue,
+                        score_date: scoreDateForSubmission // +++ ارسال تاریخ مشخص امتیاز +++
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const scoreCell = row.querySelector('.missed-score-cell');
+                    if (data.status === "ok") {
+                        if (controlsContainer) controlsContainer.style.display = 'none'; // مخفی کردن کنترل‌ها
+                        let successMsg = `✅ ثبت شد (${scoreValue})`;
+                        if (data.message) { // استفاده از پیام سرور که حاوی تاریخ است
+                            successMsg = `✅ ${data.message.replace("امتیاز برای تاریخ ", "").replace(" با موفقیت ثبت شد.", ` (${scoreValue})`)}`;
+                        }
+                        scoreCell.innerHTML = `<span class="text-success">${successMsg}</span>`;
+                        alert(data.message || `امتیاز (${scoreValue}) برای تاریخ ${scoreDateForSubmission} با موفقیت ثبت شد.`);
+                    } else {
+                        let errorMessage = `❌ خطا در ثبت امتیاز برای تاریخ ${scoreDateForSubmission}.`;
+                        if (data.error) {
+                            errorMessage += "\n" + data.error;
+                        }
+                        alert(errorMessage);
+                        // فعال کردن مجدد کنترل‌ها در صورت خطا
+                        submitButton.disabled = false;
+                        slider.disabled = false;
+                        if (initialButton) initialButton.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error submitting missed daily score:", error);
+                    alert(`❌ خطای ارتباط با سرور هنگام ثبت امتیاز برای ${scoreDateForSubmission}.`);
+                    // فعال کردن مجدد کنترل‌ها در صورت خطای شبکه
+                    submitButton.disabled = false;
+                    slider.disabled = false;
+                    if (initialButton) initialButton.disabled = false;
+                });
+            });
+        });
+
+            // Initial setup for daily score sliders on page load
+            document.querySelectorAll(".daily-score-slider").forEach(slider => {
+                 const dailyScoreControls = slider.closest('.daily-score-controls');
+                 if (dailyScoreControls) {
+                     const scoreValueSpan = dailyScoreControls.querySelector('.score-value');
+                     if (scoreValueSpan) {
+                         scoreValueSpan.innerText = slider.value;
+                     }
+                 }
+            });
+        });
+
+        if (monthlyScoreForm) {
+            monthlyScoreForm.addEventListener("submit", function(event) {
+                event.preventDefault();
+                const confirmationMessage = "⚠️ پس از ثبت امتیازات ماهانه برای این ماه، دیگر قادر به ایجاد تغییرات نخواهید بود. لطفاً اطمینان حاصل کنید که تمام امتیازات کاربران را به درستی وارد کرده‌اید و بازبینی نهایی را انجام داده‌اید.\n\nآیا از ثبت نهایی امتیازات ماهانه اطمینان دارید؟";
+
+                if (!confirm(confirmationMessage)) {
+                    return;
+                }
+
+                const monthlyScoreTypes = new Set();
+                monthlyScoreSliders.forEach(slider => {
+                    monthlyScoreTypes.add(slider.dataset.type);
+                });
+
+                let hasError = false;
+                monthlyScoreTypes.forEach(scoreType => {
+                    const slidersInColumn = document.querySelectorAll(`.monthly-score-slider[data-type="${scoreType}"]`);
+                    let total = 0;
+                    slidersInColumn.forEach(slider => {
+                        total += parseInt(slider.value);
+                    });
+                    if (total > 100) {
+                        {#const totalDisplayElement = document.querySelector(`[data-total-score-type="${scoreType}"]`);#}
+                        let columnHeader = `نوع ${scoreType}`;
+                        try {
+                            const headerRow = document.querySelector('thead tr');
+                            const headerCells = headerRow.cells;
+
+                            // Correctly determine column header based on scoreType and userAccessLevel
+                            if (scoreType === '1' && headerCells.length > 1) {
+                                columnHeader = headerCells[1].innerText;
+                            } else if (scoreType === '2' && userAccessLevel !== null && userAccessLevel <= 2 && headerCells.length > 2) {
+                                columnHeader = headerCells[2].innerText;
+                            } else if (scoreType === '3' && userAccessLevel !== null && (userAccessLevel === 1 || userAccessLevel === 0 || userAccessLevel === -1) && headerCells.length > (userAccessLevel !== null && userAccessLevel <= 2 ? 3 : 2)) {
+                                // Column 3 is the 3rd or 4th header cell depending on if column 2 is present
+                                columnHeader = headerCells[headerCells.length - 1].innerText;
+                            } else {
+                                console.warn(`Could not reliably find header for score type ${scoreType}, using default.`);
+                            }
+
+                        } catch (e) {
+                            console.error("Could not find column header:", e);
+                        }
+                        alert(`❌ مجموع امتیازات برای "${columnHeader.trim()}" (${total}) نمی‌تواند بیشتر از ۱۰۰ باشد.`);
+                        hasError = true;
+                    }
+                });
+
+                if (hasError) {
+                    return;
+                }
+
+                const data = [];
+                monthlyScoreSliders.forEach(slider => {
+                    const target_id = slider.dataset.target;
+                    const score_type = slider.dataset.type;
+                    const value = parseInt(slider.value);
+                    data.push({ target_id: target_id, score_type: score_type, value: value });
+                });
+
+                fetch("{% url 'update_monthly_scores' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken
+                    },
+                    body: JSON.stringify({ scores: data })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === "ok") {
+                        alert("✅ امتیازها با موفقیت ذخیره شدند.");
+                        window.location.reload();
+                    }
+                    else {
+                        let errorMessage = "❌ خطا در ثبت امتیازها.";
+                        if (res.error) {
+                            errorMessage += "\n" + res.error;
+                        }
+                        alert(errorMessage);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("❌ خطای ارتباط با سرور رخ داد.");
+                });
+            });
+        }
+
+        document.querySelectorAll(".daily-score-init-btn").forEach(button => {
+            button.addEventListener("click", function() {
+                const row = this.closest('tr');
+                const controlsContainer = row.querySelector('.daily-score-controls');
+                this.style.display = 'none';
+                controlsContainer.style.display = 'flex';
+                const slider = controlsContainer.querySelector('.daily-score-slider');
+                const valueSpan = controlsContainer.querySelector('.score-value');
+                valueSpan.innerText = slider.value;
+            });
+        });
+
+        document.querySelectorAll(".daily-score-slider").forEach(slider => {
+            slider.addEventListener("input", function() {
+                const valueSpan = this.closest('.daily-score-controls').querySelector('.score-value');
+                if (valueSpan) {
+                    valueSpan.innerText = this.value;
+                }
+            });
+        });
+
+        document.querySelectorAll(".daily-score-submit-btn").forEach(button => {
+            button.addEventListener("click", function() {
+                const row = this.closest('tr');
+                const employeeId = row.dataset.employeeId;
+                const controlsContainer = this.closest('.daily-score-controls');
+                const slider = controlsContainer.querySelector('.daily-score-slider');
+                const scoreValue = parseInt(slider.value);
+                this.disabled = true;
+                slider.disabled = true;
+                const initialButton = row.querySelector('.daily-score-init-btn');
+                if (initialButton) initialButton.disabled = true;
+
+                fetch("{% url 'submit_daily_score' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrftoken
+                    },
+                    body: JSON.stringify({ employee_id: employeeId, value: scoreValue })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    const scoreCell = row.querySelector('.score-cell');
+                    if (res.status === "ok") {
+                        controlsContainer.style.display = 'none';
+                        scoreCell.innerHTML = `<span class="text-success">✅ ثبت شده (${scoreValue})</span>`;
+                        alert("✅ امتیاز روزانه با موفقیت ثبت شد.");
+                    } else if (res.status === "duplicate") {
+                        alert("⚠️ شما امروز قبلاً به این کارمند امتیاز داده‌اید.");
+                        controlsContainer.style.display = 'none';
+                        scoreCell.innerHTML = '<span class="text-success">✅ ثبت شده</span>';
+                    } else {
+                        let errorMessage = "❌ خطا در ثبت امتیاز روزانه.";
+                        if (res.error) {
+                            errorMessage += "\n" + res.error;
+                        }
+                        alert(errorMessage);
+                        this.disabled = false;
+                        slider.disabled = false;
+                        if (initialButton) initialButton.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("❌ خطای ارتباط با سرور رخ داد.");
+                    this.disabled = false;
+                    slider.disabled = false;
+                    if (initialButton) initialButton.disabled = false;
+                });
+            });
+        });
+        // Add event listeners to the up and down buttons for the monthly sliders
+        document.querySelectorAll(".slider-button").forEach(button => {
+            button.addEventListener("click", function() {
+                const sliderId = this.dataset.slider;
+                const slider = document.querySelector(`input[name="${sliderId}"]`);
+                let currentValue = parseInt(slider.value.toString());
+                {#const scoreType = this.dataset.scoreType;#}
+                {#const userId = this.dataset.userId;#}
+
+                if (this.classList.contains('slider-up')) {
+                    currentValue = Math.min(currentValue + 1, parseInt(slider.max)); // Use slider.max here
+                } else {
+                    currentValue = Math.max(currentValue - 1, parseInt(slider.min)); // Use slider.min here
+                }
+
+                slider.value = currentValue;
+
+                // Trigger the input event manually to update the display and total
+                const inputEvent = new Event('input', { bubbles: true });
+                slider.dispatchEvent(inputEvent);
+            });
+        });
+    </script>
+{% endblock %}

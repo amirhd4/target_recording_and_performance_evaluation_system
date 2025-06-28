@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+{#<link href="{% static 'links/dataTables.bootstrap5.min.css' %}" rel="stylesheet">#}
+{#<link rel="stylesheet" href="https://cdn.datatables.net/2.0.7/css/dataTables.bootstrap5.min.css">#}
+<style>
+    /* New styles for grouped table if needed */
+    .group-table {
+        margin-top: 30px;
+        margin-bottom: 30px;
+    }
+    /* Optional: Adjust Chart height for responsiveness */
+    #monthlyChartContainer {
+        position: relative;
+        height: 60vh; /* Adjust as needed, e.g., 300px or 40vh */
+        width: 100%;
+        max-width: 900px; /* Optional: constrain max width */
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        margin-left: 0.5em; /* Align with Bootstrap conventions */
+        display: inline-block;
+        width: auto;
+    }
+        /* اطمینان از اینکه هیچ اسکرول عمودی ناخواسته‌ای در DataTables wrapper وجود ندارد */
+    .dataTables_wrapper {
+        overflow: visible !important; /* برای جلوگیری از اسکرول کلی DataTables wrapper */
+    }
+
+    /* اطمینان از اینکه بخش بدنه اسکرول نمی‌خورد (این بیشتر برای سناریو scrollY: true بود، اما برای اطمینان بیشتر اینجا هم باشه خوبه) */
+    .dataTables_scrollBody {
+        overflow-y: visible !important;
+        max-height: none !important; /* حذف محدودیت ارتفاع احتمالی */
+    }
+
+    /* اگر div.table-responsive هم اسکرول عمودی ناخواسته ایجاد می‌کند */
+    .table-responsive {
+        max-height: none !important;
+        overflow-y: visible !important; /* معمولا برای افقی استفاده میشه، اما برای اطمینان */
+        overflow-x: auto; /* اسکرول افقی Bootstrap رو حفظ کنید اگر جدول عریض باشه */
+    }
+
+    /* همچنین مطمئن شوید که تگ‌های html و body محدودیت ارتفاعی ندارند */
+    html, body {
+        height: auto !important;
+        overflow: auto !important; /* یا visible */
+    }
+
+        /* استایل کلی برای کانتینر pagination */
+    .dataTables_paginate {
+        margin-top: 20px;
+        text-align: center; /* برای وسط چین کردن دکمه‌ها */
+    }
+
+    /* استایل برای هر دکمه (شماره‌ها، قبلی، بعدی) */
+    .paginate_button {
+        display: inline-block; /* برای اینکه در کنار هم قرار بگیرند */
+        padding: 8px 12px;
+        margin: 0 4px;
+        border: 1px solid #ddd;
+        border-radius: 4px; /* گوشه‌های گرد */
+        background-color: #f8f8f8;
+        color: #333;
+        cursor: pointer;
+        text-decoration: none; /* حذف زیرخط */
+        transition: all 0.3s ease; /* انیمیشن برای هاور */
+    }
+
+    /* استایل برای دکمه‌های فعال/هاور */
+    .paginate_button:hover:not(.current):not(.disabled) {
+        background-color: #e9e9e9;
+        border-color: #ccc;
+        color: #000;
+    }
+
+    /* استایل برای دکمه صفحه فعلی */
+    .paginate_button.current {
+        background-color: #007bff; /* رنگ آبی بوت‌استرپ */
+        color: white;
+        border-color: #007bff;
+        font-weight: bold;
+    }
+
+    /* استایل برای دکمه‌های غیرفعال */
+    .paginate_button.disabled {
+        background-color: #f0f0f0;
+        color: #aaa;
+        cursor: not-allowed;
+        pointer-events: none; /* جلوگیری از کلیک */
+    }
+
+    /* فاصله گذاری برای "قبلی" و "بعدی" */
+    .paginate_button.previous,
+    .paginate_button.next {
+        margin: 0 10px; /* فاصله بیشتر */
+    }
+
+    /* RTL (راست به چپ) برای زبان فارسی */
+    /* اگر کل سایت شما RTL است، این موارد ضروری هستند */
+    .dataTables_wrapper {
+        direction: rtl; /* کل DataTable رو RTL میکنه */
+    }
+
+    .dataTables_paginate {
+        text-align: center; /* همچنان وسط چین */
+    }
+
+    /* مطمئن شوید که جستجو و تعداد نمایش ردیف هم درست میشن */
+    .dataTables_filter label,
+    .dataTables_length label {
+        float: right; /* برای راست چین شدن */
+        margin-left: 10px; /* فاصله از عنصر بعدی */
+    }
+
+    .dataTables_info {
+        float: right; /* برای راست چین شدن */
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container" style="margin-top: 10rem">
+    <h2 class="mb-4 text-center fw-bold">عملکرد ماهانه کاربران</h2>
+
+    <form method="get" class="row g-3 justify-content-center mb-4">
+        <div class="col-auto">
+            <label>
+                <input type="number" name="year" class="form-control" placeholder="سال شمسی" value="{{ selected_year }}">
+            </label>
+        </div>
+        <div class="col-auto">
+            <label>
+                <input type="number" name="month" class="form-control" placeholder="ماه" value="{{ selected_month }}">
+            </label>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">نمایش</button>
+        </div>
+    </form>
+
+    {% if performance_data %}
+    <div class="mb-4 text-center">
+        <a href="?year={{ selected_year }}&month={{ selected_month }}&export=pdf" class="btn btn-outline-danger btn-sm me-2"><i class="fas fa-file-pdf"></i> دانلود PDF</a>
+        <a href="?year={{ selected_year }}&month={{ selected_month }}&export=excel" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel"></i> دانلود Excel</a>
+    </div>
+
+    {% if chart_labels and chart_scores or targets_count %}
+        <div id="monthlyChartContainer" class="mb-5">
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    {% endif %}
+
+    {% if grouped_performance_data %}
+    <h3 class="mb-3 text-center fw-bold group-table">عملکرد ماهانه بر اساس گروه‌ها</h3>
+    <div class="table-responsive group-table">
+        <table class="table table-bordered table-hover table-striped text-center align-middle" style="width:100%">
+            <thead class="table-dark">
+                <tr>
+                    <th>نام گروه</th>
+                    <th>تعداد کاربران</th>
+                    <th>مجموع اهداف</th>
+                    <th>مجموع امتیاز کسب شده</th>
+                    <th>مجموع امتیاز بالقوه</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group_item in grouped_performance_data %}
+                <tr>
+                    <td>{{ group_item.group_name }}</td>
+                    <td>{{ group_item.user_count }}</td>
+                    <td>{{ group_item.group_total_targets }}</td>
+                    <td>{{ group_item.group_total_actual_score }}</td>
+                    <td>{{ group_item.group_total_potential_score }}</td>
+                </tr>
+                {% endfor %}
+                <tr>
+                    <td><strong>مجموع</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td><strong>{{ overall_scores.0 }}</strong></td>
+                    <td><strong>{{ overall_scores.1 }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    <h3 class="mb-3 text-center fw-bold group-table">عملکرد ماهانه هر کاربر</h3>
+    <div class="table-responsive">
+        <table id="performanceTable" class="table table-bordered table-hover table-striped text-center align-middle" style="width:100%">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>نام کاربر</th>
+                    <th>تعداد اهداف</th>
+                    <th>مجموع امتیاز</th>
+                    <th>محاسبه شده توسط فرمول</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in performance_data %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.user.get_full_name }}</td>
+                    <td>{{ item.targets_count }}</td>
+                    <td>{{ item.total_score }}</td>
+                    <td>{{ item.calculated_scores }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="text-center mt-5 text-muted">اطلاعاتی برای نمایش وجود ندارد.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{#<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>#}
+{#<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>#}
+{#<script src="https://cdn.datatables.net/2.0.7/js/dataTables.bootstrap5.min.js"></script>#}
+
+<script>
+
+$(document).ready(function() {
+    $('#performanceTable').DataTable({
+        "language": {
+            "decimal":        "",
+            "emptyTable":     "داده‌ای در جدول وجود ندارد",
+            "info":           "نمایش _START_ تا _END_ از _TOTAL_ ردیف",
+            "infoEmpty":      "نمایش 0 تا 0 از 0 ردیف",
+            "infoFiltered":   "(فیلتر شده از _MAX_ ردیف)",
+            "infoPostFix":    "",
+            "thousands":      ",",
+            "lengthMenu":     "نمایش _MENU_ ردیف",
+            "loadingRecords": "در حال بارگزاری...",
+            "processing":     "در حال پردازش...",
+            "search":         "جستجو:",
+            "zeroRecords":    "ردیفی با این مشخصات پیدا نشد",
+            "paginate": {
+                "first":      '<i class="fa-solid fa-angles-right"></i>',
+                "last":       '<i class="fa-solid fa-angles-left"></i>',
+                "next":       '<i class="fa-solid fa-angle-left"></i>',
+                "previous":   '<i class="fa-solid fa-angle-right"></i>'
+            },
+            "aria": {
+                "sortAscending":  ": فعال سازی نمایش به صورت صعودی",
+                "sortDescending": ": فعال سازی نمایش به صورت نزولی"
+            }
+        },
+        "pageLength": 10, // Default number of rows to display
+        "lengthMenu": [ [10, 25, 50, -1], [10, 25, 50, "همه"] ],
+        "scrollY": false, // **ارتفاع اسکرول داخلی را به 400 پیکسل محدود می‌کند**
+        "scrollCollapse": true // اجازه می‌دهد ارتفاع در صورت کم بودن محتوا کاهش یابد
+    });
+});
+
+{% if performance_data and chart_labels and chart_scores or targets_count %}
+    const chartLabels = {{ chart_labels|safe }};
+    const chartScores = {{ chart_scores|safe }}; // Assuming you pass this from your view
+    const chartCount = {{ targets_count|safe }};
+
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'bar', // You can change to 'line' or other types
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: 'مجموع اهداف ارسالی',
+                    data: chartCount,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)', // Teal
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'مجموع امتیاز روزانه',
+                    data: chartScores,
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)', // Blue
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                    // To put this on a different axis if scales are very different:
+                    // yAxisID: 'y-axis-score'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false, // Important for custom container height
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'مقدار'
+                    }
+                }
+                // If using a secondary axis for scores:
+                // 'y-axis-score': {
+                //     type: 'linear',
+                //     display: true,
+                //     position: 'right',
+                //     beginAtZero: true,
+                //     grid: {
+                //         drawOnChartArea: false, // only want the grid lines for one axis to show up
+                //     },
+                //     title: {
+                //         display: true,
+                //         text: 'امتیاز'
+                //     }
+                // }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        }
+    });
+{% endif %}
+</script>
+{% endblock %}

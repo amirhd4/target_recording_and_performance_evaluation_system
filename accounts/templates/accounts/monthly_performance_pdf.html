@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>گزارش عملکرد ماهانه</title>
+    <style>
+        /* Embed Vazirmatn font for PDF generation */
+        @font-face {
+            font-family: 'Vazirmatn';
+            src: url('{{ vazirmatn_font_url }}') format('{{ vazirmatn_font_format }}');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            direction: rtl;
+            text-align: right;
+            font-size: 10pt;
+            margin: 40px;
+        }
+        h1, h2, h3 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .container {
+            width: 100%;
+            margin: 0 auto;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .mt-5 {
+            margin-top: 30px;
+        }
+        .fw-bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">گزارش عملکرد ماهانه کاربران</h1>
+        <h2 class="text-center">ماه: {{ selected_month }} - سال: {{ selected_year }}</h2>
+
+        {% if grouped_performance_data %}
+        <h3 class="text-center mt-5 fw-bold">عملکرد ماهانه بر اساس گروه‌ها</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>نام گروه</th>
+                    <th>تعداد کاربران</th>
+                    <th>مجموع اهداف</th>
+                    <th>مجموع امتیاز کسب شده</th>
+                    <th>مجموع امتیاز بالقوه</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group_item in grouped_performance_data %}
+                <tr>
+                    <td>{{ group_item.group_name }}</td>
+                    <td>{{ group_item.user_count }}</td>
+                    <td>{{ group_item.group_total_targets }}</td>
+                    <td>{{ group_item.group_total_actual_score }}</td>
+                    <td>{{ group_item.group_total_potential_score }}</td>
+                </tr>
+                {% endfor %}
+                  <tr>
+                    <td><strong>مجموع</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td><strong>{{ overall_scores.0 }}</strong></td>
+                    <td><strong>{{ overall_scores.1 }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+        {% endif %}
+
+        <h3 class="text-center mt-5 fw-bold">عملکرد ماهانه کاربران (جزئیات)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>نام کاربر</th>
+                    <th>تعداد اهداف</th>
+                    <th>مجموع امتیاز</th>
+                    <th>محاسبه شده توسط فرمول</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in performance_data %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.user.get_full_name }}</td>
+                    <td>{{ item.targets_count }}</td>
+                    <td>{{ item.total_score }}</td>
+                    <td>{{ item.calculated_scores }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not performance_data and not grouped_performance_data %}
+            <p class="text-center mt-5">اطلاعاتی برای نمایش وجود ندارد.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

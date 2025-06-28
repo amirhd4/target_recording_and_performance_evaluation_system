@@ -1,0 +1,410 @@
+{% load custom_filters %}
+{% load static %}
+{% load pwa %}
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+{#    <meta name="viewport" content="width=device-width, initial-scale=1.0">#}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="author" content="تیم IT">
+    <meta name="keywords" content="اهداف, ارزیابی, عملکرد, کارکنان, شرکت">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#007bff">
+    <meta name="description" content="سامانه ثبت اهداف و ارزیابی عملکرد کارکنان شرکت.">
+    <title>{% block title %}سامانه ثبت اهداف{% endblock %}</title>
+
+    <meta name="theme-color" content="#0d6efd">
+
+    <link rel="icon" type="image/png" href="{% static 'images/logo_submit_target3.png' %}">
+
+    <link href="{% static 'links/bootstrap.rtl.min.css' %}" rel="stylesheet">
+    <link href="{% static 'links/select2.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'fontawesome/css/all.css' %}">
+    <link href="{% static 'links/bootstrap-icons.css' %}" rel="stylesheet">
+
+    <script src="{% static 'scripts/jquery-3.7.1.min.js' %}"></script>
+{#    <script src="{% static 'scripts/popper.min.js' %}"></script>#}
+{#    <script src="{% static 'scripts/bootstrap.min.js' %}"></script>#}
+    <script src="{% static 'scripts/bootstrap.bundle.min.js' %}"></script>
+
+    <script src="{% static 'scripts/select2.min.js' %}" crossorigin="anonymous"></script>
+    <script src="{% static 'scripts/htmx.min.js' %}" crossorigin="anonymous"></script>
+    <script src="{% static 'scripts/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'scripts/dataTables.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'scripts/chart.js' %}"></script>
+
+{#    <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>#}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {% progressive_web_app_meta %}
+
+    <style>
+        .gradient-text {
+            background-image: linear-gradient(to right, #951595, rgba(13, 110, 253, 0.5));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 35px;
+            font-weight: bold;
+        }
+          #install-btn {
+                display: none;
+                background: linear-gradient(45deg, #007bff, #6610f2);
+                border: none;
+                color: white;
+                padding: 12px 24px;
+                font-size: 16px;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: 0.3s;
+              }
+
+              #install-btn i {
+                margin-left: 8px;
+              }
+
+              #install-btn:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+              }
+            .navbar-nav .nav-link {
+                color: #333;
+                transition: all 0.3s ease;
+            }
+
+            .navbar-nav .nav-link:hover {
+                color: #007bff;
+                text-decoration: underline;
+            }
+
+            .navbar-nav .nav-link.active {
+                font-weight: bold;
+                color: #0d6efd;
+            }
+            main.content-wrapper {
+                margin-top: 8rem;
+            }
+            @media (max-width: 767.98px) {
+                main.content-wrapper {
+                    margin-top: 8.5rem;
+                }
+            }
+            @font-face {
+                font-family: 'Vazirmatn';
+                src: url("{% static 'fonts/vazirmatn/Vazirmatn-Light.woff2' %}") format('woff2');
+                font-weight: normal;
+                font-style: normal;
+            }
+
+            body {
+                font-family: 'Vazirmatn', sans-serif;
+                background-color: #f8f9fa;
+                color: #212529;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+            }
+            /* اطمینان از اینکه محتوا فضای لازم را بگیرد */
+            .content-wrapper {
+                flex-grow: 1;
+            }
+
+            .navbar {
+                border-bottom: 1px solid #dee2e6; /* خط جداکننده پایین نوار ناوبری */
+                /* padding-top: 0.75rem; */ /* اضافه کردن پدینگ عمودی اگر نیاز است */
+                /* padding-bottom: 0.75rem; */
+            }
+            .navbar .container-fluid {
+                /* تنظیم پدینگ افقی برای موبایل اگر پیش فرض کافی نیست */
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .navbar-brand {
+                font-weight: 700 !important; /* اطمینان از ضخامت فونت برای برند */
+                font-size: 1.25rem; /* اندازه فونت مناسب برای برند */
+            }
+
+            .navbar h5 {
+                font-size: 1rem; /* اندازه فونت برای نام کاربر در نوار ناوبری */
+                font-weight: 500;
+            }
+
+            /* تنظیمات فاصله بین عناصر در نوار ناوبری برای ریسپانسیو بودن بهتر در صفحه های کوچک */
+            .navbar .gap-3 {
+                gap: 0.75rem !important; /* کمی فاصله کمتر در موبایل */
+            }
+            .navbar .gap-2 {
+                gap: 0.5rem !important; /* کمی فاصله کمتر در موبایل */
+            }
+
+            /* مدیریت پیچیده شدن (flex-wrap) دکمه ها در نوار ناوبری */
+            .navbar .flex-wrap {
+                flex-wrap: wrap; /* دکمه ها به خط بعدی منتقل می شوند در صورت نیاز */
+                justify-content: center; /* وسط چین شدن دکمه ها وقتی پیچیده می شوند */
+            }
+
+            .card {
+                border-radius: 0.75rem; /* کمی کمتر کردن گردی لبه کارت ها */
+                box-shadow: 0 .125rem .25rem rgba(0,0,0,.075); /* افزودن سایه کم */
+            }
+
+            footer {
+                font-size: 0.85rem; /* کمی کوچکتر کردن فونت فوتر */
+                font-weight: 500;
+                margin-top: auto; /* برای چسباندن فوتر به پایین صفحه */
+                background-color: #e9ecef; /* رنگ پس زمینه کمی متفاوت برای فوتر */
+                border-top: 1px solid #dee2e6;
+            {#padding-top: 0.5rem;#}
+            {#padding-bottom: 0.5rem;#}
+            }
+            footer .container {
+                margin-top: 0;
+            }
+
+            /* استایل های سفارشی شما (مانند total-exceeded یا table-responsive که قبلاً داشتید) */
+            .total-exceeded {
+                color: red;
+                font-weight: bolder;
+            }
+            .table-responsive {
+                max-height: 300px; /* مثال: ارتفاع برای اسکرول */
+                overflow-y: auto;
+            }
+            /* استایل برای کوچک کردن فونت در جدول اهداف اگر متن بلند است */
+            .table-responsive table td {
+                font-size: 0.9rem; /* مثال: کمی کوچک‌تر از فونت عادی */
+                /* word-break: break-word; */ /* شکستن کلمات طولانی */
+            }
+
+            .navbar .collapse.navbar-collapse {
+                margin-top: -10px; /* کاهش مارجین بالا برای بخش لینک‌ها */
+            }
+
+            /* **افزودن Media Query های پایه برای تنظیمات خیلی خاص اگر لازم شد** */
+            /* مثال: تنظیمات برای صفحه نمایش های کوچکتر از 768px (موبایل) */
+            @media (max-width: 767.98px) {
+                .navbar-brand {
+                    font-size: 1rem; /* کوچکتر کردن فونت برند در موبایل */
+                }
+                .navbar h5 {
+                    font-size: 0.9rem; /* کوچکتر کردن فونت نام کاربر در موبایل */
+                    margin-bottom: 0.5rem !important; /* افزودن فاصله پایین زیر نام کاربر در موبایل */
+                    width: 100%; /* نام کاربر کل عرض موجود را بگیرد */
+                    text-align: center; /* وسط چین کردن نام کاربر در موبایل */
+                }
+                .navbar .d-flex.align-items-center.gap-3 {
+                    flex-direction: column; /* آیتم ها زیر هم قرار بگیرند */
+                    align-items: center !important; /* وسط چین شوند */
+                }
+                .navbar .d-flex.flex-wrap.gap-2 {
+                    justify-content: center !important; /* وسط چین کردن دکمه ها */
+                    width: 100%; /* دکمه ها کل عرض موجود را بگیرند */
+                }
+                .navbar .collapse.navbar-collapse {
+                    margin-top: 0; /* کاهش مارجین بالا برای بخش لینک‌ها */
+                }
+            }
+
+            /* مثال: تنظیمات برای صفحه نمایش های بین 768px و 992px (تبلت) */
+            /* @media (min-width: 768px) and (max-width: 991.98px) { */
+            /* تنظیمات خاص برای تبلت */
+            /* } */
+        .navbar.fixed-top.navbar-scrolled #navbar-row-userinfo,
+        .navbar.fixed-top.navbar-scrolled #navbar-row-brand {
+            display: none; /* مخفی کردن ردیف اطلاعات کاربر و ردیف برند/لوگو */
+        }
+
+        .navbar.fixed-top.navbar-scrolled #navbarSupportedContent {
+            /* اطمینان از اینکه این بخش پس از مخفی شدن بالایی‌ها، به درستی نمایش داده می‌شود */
+            /* معمولا نیازی به تغییر خاصی در اینجا نیست چون flex-column والد، آن را به بالا می‌کشد */
+        }
+
+        /* ممکن است بخواهید ارتفاع کلی نوبار در حالت اسکرول شده را تنظیم کنید یا padding آن را تغییر دهید */
+        .navbar.fixed-top.navbar-scrolled {
+            /* background-color: rgba(255, 255, 255, 0.95); */ /* مثال: کمی شفافیت */
+            /* box-shadow: 0 .125rem .25rem rgba(0,0,0,.075) !important; */ /* حفظ یا تغییر سایه */
+        }
+
+    </style>
+    {% block extra_css %}
+    {% endblock %}
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg bg-white shadow-sm fixed-top">
+        <div class="container-fluid flex-column align-items-stretch">
+            {% if user.is_authenticated %}
+                <div id="navbar-row-userinfo" class="w-100 text-start small text-secondary py-1">
+                    <i class="fas {% if user.access_level == -1 %} fa-crown text-warning {% elif user.access_level == 0 %} fas fa-user-tie text-primary {% elif user.access_level == 1 %} fa-user-gear {% elif user.access_level == 2 %} fas fa-user-shield {% else %} fas fa-user text-muted {% endif %}"> </i>
+                    کاربر: {{ user.username }} (
+                    {% for group in request.user.groups.all %}
+                        {{ group.name }}{% if not forloop.last %} - {% endif %}
+                    {% empty %}
+                        سمت شما مشخص نشده است
+                    {% endfor %}
+                    )
+                </div>
+            {% endif %}
+
+            <div id="navbar-row-brand" class="d-flex w-100 justify-content-between align-items-center">
+                <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% url 'submit_target' %}">
+                    <img src="{% static 'images/logo_submit_target3.png' %}" alt="لوگو" style="height: 32px;" />
+                    سامانه ثبت اهداف و ارزیابی عملکرد
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="نمایش منو">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+
+            <div class="collapse navbar-collapse w-100" id="navbarSupportedContent"> <ul class="navbar-nav ms-auto mb-2 mb-lg-0 gap-2">
+            {% if user.is_authenticated %}
+
+                {% for group in request.user.groups.all %}
+                    {% if group.name|in_list_str:"کارمند IT, سرپرست IT, سرپرست حسابداری صنعتی, سرپرست مونتاژ" or user.access_level|in_list:"0, -1" %}
+                        <li class="nav-item"><a href="{% url 'projects_products' %}" class="nav-link {% if request.resolver_match.url_name == 'projects_products' %}active text-primary fw-bold{% endif %}"><i class="fas fa-inventory text-warning"></i> محصولات</a></li>
+                        {{ break }}
+                    {% endif %}
+                {% endfor %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active text-primary fw-bold{% endif %}" href="{% url 'dashboard' %}">
+                            🏠 داشبورد
+                        </a>
+                    </li>
+                    {% if request.user.access_level == -1 %}
+                        {#  TODO: Change this mode status   #}
+                        {#  <li class="nav-item"><a href="{% url 'monthly_scores_summary' %}" class="nav-link {% if request.resolver_match.url_name == 'monthly_scores_summary' %}active text-primary fw-bold{% endif %}">🏅 خلاصه امتیازات ماهانه</a></li>#}
+                    {% endif %}
+                    <li class="nav-item"><a href="{% url 'knowledge_management' %}" class="nav-link {% if request.resolver_match.url_name == 'knowledge_management' %}active text-primary fw-bold{% endif %}"><i class="fas fa-book-open-reader text-info"></i> مدیریت دانش</a></li>
+                    <li class="nav-item"><a href="{% url 'user_responsibilities' %}" class="nav-link {% if request.resolver_match.url_name == 'user_responsibilities' %}active text-primary fw-bold{% endif %}"><i class="fas fa-list-check text-primary"></i> آیین نامه ها و شرح وظایف</a></li>
+                    <li class="nav-item"><a href="{% url 'submit_target' %}" class="nav-link {% if request.resolver_match.url_name == 'submit_target' %}active text-primary fw-bold{% endif %}"><i class="fas fa-bullseye text-success"></i> ثبت هدف</a></li>
+                    {% if request.user.id|in_list:"61, 55, 1" or request.user.access_level|in_list:"0, -1" %}
+                        <li class="nav-item"><a href="{% url 'user_monthly_performance' %}" class="nav-link {% if request.resolver_match.url_name == 'user_monthly_performance' %}active text-primary fw-bold{% endif %}"><i class="fas fa-chart-line text-warning"></i> عملکرد ماهانه</a></li>
+                    {% endif %}
+                    <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'password_change' %}active text-warning fw-bold{% endif %}" href="{% url 'password_change' %}"><i class="fas fa-key text-secondary"></i> تغییر رمز عبور</a></li>
+                    <li class="nav-item"><a href="{% url 'logout' %}" class="nav-link active text-danger fw-bold"><i class="fas fa-right-from-bracket text-danger"></i> خروج</a></li>
+                    {% else %}
+                        <li class="nav-item"><a href="{% url 'login' %}" class="nav-link {% if request.resolver_match.url_name == 'login' %}active text-primary fw-bold{% endif %}">ورود</a></li>
+                        <li class="nav-item"><a href="{% url 'submit_target' %}" class="nav-link {% if request.resolver_match.url_name == 'submit_target' %}active text-primary fw-bold{% endif %}"><i class="fas fa-bullseye text-success"></i> ثبت هدف</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    </header>
+    {# **استفاده از تگ main معنایی برای محتوای اصلی صفحه** #}
+    <main class="content-wrapper"> {# اضافه کردن کلاس کمکی برای flexbox والد (body) #}
+        <div class="container">
+            {# **این بلاک حاوی محتوای اصلی هر صفحه است که از این بیس تمپلت ارث‌بری می‌کند** #}
+            {% block content %}
+            {% endblock %}
+        </div>
+    </main>
+
+    <footer class="text-center py-3 mt-5 border-top bg-light text-muted">
+        <div class="container">
+            طراحی شده توسط <strong>تیم IT</strong> | &copy; <i class="fa-duotone fa-laptop-code"></i>
+        </div>
+        <button id="install-btn" class="mt-4">
+            نصب اپلیکیشن <i class="fas fa-download"></i>
+        </button>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+
+    {% block scripts %}
+    {% endblock %}
+
+    <script>
+          let deferredPrompt;
+          const installBtn = document.getElementById('install-btn');
+
+          window.addEventListener('beforeinstallprompt', (e) => {
+            // Block the default install prompt
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'inline-block';
+          });
+
+          // Check if already installed
+          window.addEventListener('appinstalled', () => {
+            installBtn.innerHTML = '✅ نصب شده';
+            installBtn.disabled = true;
+          });
+
+          // Extra check for already installed apps
+          {#window.addEventListener('DOMContentLoaded', () => {#}
+          {#  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {#}
+          {#    installBtn.innerHTML = '✅ نصب شده';#}
+          {#    installBtn.disabled = true;#}
+          {#    installBtn.style.display = 'inline-block';#}
+          {#  }#}
+          //}
+          {#);#}
+
+          installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+              deferredPrompt.prompt();
+              const result = await deferredPrompt.userChoice;
+              if (result.outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+              } else {
+                console.log('User dismissed the install prompt');
+              }
+              deferredPrompt = null;
+            }
+          });
+        document.addEventListener('DOMContentLoaded', function () {
+            const navbar = document.querySelector('.navbar.fixed-top');
+            if (!navbar) return; // اگر نوبار پیدا نشد، خارج شو
+
+            const scrollThreshold = 50; // تعداد پیکسل اسکرول برای فعال شدن تغییر (مثلا 50 پیکسل)
+
+            function handleNavbarScroll() {
+                // این رفتار معمولا برای صفحه‌های دسکتاپ (بزرگتر از lg بوت‌استرپ) مطلوب است
+                // نقطه شکست 'lg' بوت‌استرپ معمولا 992px است
+                if (window.innerWidth >= 992) {
+                    if (window.scrollY > scrollThreshold) {
+                        navbar.classList.add('navbar-scrolled');
+                    } else {
+                        navbar.classList.remove('navbar-scrolled');
+                    }
+                } else {
+                    // در صفحه‌های کوچکتر، کلاس را بردار تا نوبار به حالت عادی برگردد
+                    navbar.classList.remove('navbar-scrolled');
+                }
+            }
+
+            window.addEventListener('scroll', handleNavbarScroll);
+            window.addEventListener('resize', handleNavbarScroll); // برای تطبیق با تغییر اندازه صفحه
+            handleNavbarScroll(); // اجرای اولیه برای حالتی که صفحه از ابتدا اسکرول شده باشد
+
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+        // اطمینان از اینکه مرورگر از Service Worker پشتیبانی می‌کند
+        if ('serviceWorker' in navigator) {
+            // ثبت Service Worker پس از بارگذاری کامل صفحه
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('{% url "pwa:serviceworker" %}')
+                .then(function(registration) {
+                    // ثبت موفقیت‌آمیز بود
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                })
+                .catch(function(err) {
+                    // ثبت با خطا مواجه شد
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = document.querySelector('meta[name="csrf-token"]').content;
+        })
+</script>
+</body>
+</html>

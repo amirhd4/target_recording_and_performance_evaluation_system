@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{# {% load crispy_forms_tags %} #}
+{% load jformat %}
+{% load static %}
+{% load custom_filters %} {# اگر جای دیگری استفاده می‌شود، نگه دارید؛ برای آیکون لیبل فرم دیگر نیاز نیست #}
+
+{% block title %}{% trans "لیست موارد مدیریت دانش" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* استایل‌های عمومی و مربوط به لیست فایل‌ها که قبلا درست کار می‌کردند */
+    .km-file-link {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .km-file-link i.file-icon { /* برای آیکون‌های داخل لیست فایل‌ها */
+        font-size: 1.5rem;
+    }
+
+    /* رنگ‌های آیکون‌ها */
+    .file-icon.pdf { color: #dc3545; }
+    .file-icon.word { color: #0d6efd; }
+    .file-icon.text { color: #6c757d; }
+    .file-icon.image { color: #17a2b8; }
+    .file-icon.archive { color: #ffc107; }
+    .file-icon.excel { color: #28a745; }
+    .file-icon.default { color: #343a40; }
+    
+    /* استایل‌های مربوط به آیکون‌ها در لیبل فرم انتخاب فایل */
+    .form-label .allowed-icons {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-top: 4px;
+    }
+    .form-label .allowed-icons i.file-icon { /* برای آیکون‌های داخل لیبل فرم */
+        font-size: 1.2rem; /* کمی کوچک‌تر */
+    }
+
+    /* ادامه استایل‌های شما ... (بقیه استایل‌ها بدون تغییر باقی می‌مانند) */
+    .km-content-textarea {
+        box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.05);
+        border-color: #cccccc;
+        line-height: 1.6;
+    }
+    .km-content-textarea:focus {
+        border-color: #0056b3;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    .km-items-list-container {
+        max-height: 400px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 15px;
+    }
+    .km-items-list-container::-webkit-scrollbar { width: 8px; }
+    .km-items-list-container::-webkit-scrollbar-track { background: #e9ecef; border-radius: 10px; }
+    .km-items-list-container::-webkit-scrollbar-thumb { background-color: #007bff; border-radius: 10px; border: 2px solid #e9ecef; }
+    .km-date-text { font-size: 0.8rem; display: block; margin-top: 5px; }
+    /* .km-file-link { margin-top: 10px; display: block; } <-- این با بالایی ادغام شده */
+
+    .form-group label { display: inline-block; margin-bottom: 0.5rem; }
+    .form-group .form-control { display: block; width: 100%; padding: 0.375rem 0.75rem; font-size: 1rem; font-weight: 400; line-height: 1.5; color: #212529; background-color: #fff; background-clip: padding-box; border: 1px solid #ced4da; appearance: none; border-radius: 0.25rem; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
+    .form-group .form-control:focus { color: #212529; background-color: #fff; border-color: #86b7fe; outline: 0; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); }
+    .form-group .invalid-feedback { display: none; width: 100%; margin-top: 0.25rem; font-size: 0.875em; color: #dc3545; }
+    .form-group .form-control.is-invalid + .invalid-feedback { display: block; }
+    .form-group .form-control.is-invalid { border-color: #dc3545; }
+
+    .custom-file-upload-wrapper { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .custom-file-upload-wrapper input[type="file"] { display: none; }
+    .custom-file-upload-button { display: inline-block; font-weight: 400; line-height: 1.5; color: #212529; text-align: center; text-decoration: none; vertical-align: middle; cursor: pointer; user-select: none; background-color: #e9ecef; border: 1px solid transparent; padding: 0.375rem 0.75rem; font-size: 1rem; border-radius: 0.25rem; transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
+    .custom-file-upload-button:hover { background-color: #dee2e6; }
+    .custom-file-upload-button:active { background-color: #c6c9cc; }
+    .selected-file-name { flex-grow: 1; color: #495057; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-validation-feedback { width: 100%; margin-top: 0.25rem; font-size: 0.875em; }
+    .file-validation-feedback.text-danger { color: #dc3545; }
+    .file-validation-feedback.text-success { color: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 10rem">
+    <h2 class="mb-4">لیست موارد مدیریت دانش شما</h2>
+
+    {# --- بخش نمایش لیست موارد --- #}
+    <div class="km-items-list-container">
+        {% if km_entries %}
+            <div class="row">
+                {% for entry in km_entries %}
+                <div class="col-md-12 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="card-text">{{ entry.content|linebreaksbr }}</p>
+                            {% if entry.file_upload %}
+                            <div class="km-file-link js-file-item" data-filename="{{ entry.file_upload.name }}">
+                                {# JS آیکون را اینجا اضافه می‌کند #}
+                                <a href="/accounts/media/{{ request.user.id }}/{{ entry.file_upload.name|get_basename }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    دانلود فایل ضمیمه
+                                     ({{ entry.file_upload.name|get_basename|truncate_name:15 }})
+                                </a>
+                            </div>
+                            {% endif %}
+                            <small class="text-muted km-date-text"> {{ entry.created_at_jalali|jformat:'%Y/%m/%d %H:%M' }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                هنوز هیچ مورد مدیریت دانشی برای شما ثبت نشده است.
+            </div>
+        {% endif %}
+    </div>
+    {# --- پایان بخش نمایش لیست موارد --- #}
+
+    <h2 class="mt-4 mb-3">افزودن مورد جدید مدیریت دانش</h2>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" id="km-add-form">
+                {% csrf_token %}
+
+                {# --- فیلد محتوا --- #}
+                <div class="form-group mb-3">
+                    <label for="{{ form.content.id_for_label }}" class="form-label">{{ form.content.label }}</label>
+                    <textarea name="{{ form.content.name }}"
+                              cols="{{ form.content.field.widget.attrs.cols|default:60 }}"
+                              rows="{{ form.content.field.widget.attrs.rows|default:5 }}"
+                              placeholder="{{ form.content.field.widget.attrs.placeholder|default:'' }}"
+                              class="form-control km-content-textarea{% if form.content.errors %} is-invalid{% endif %}"
+                              {% if form.content.field.required %}required{% endif %}
+                              id="{{ form.content.id_for_label }}"
+                    >{{ form.content.value|default:"" }}</textarea>
+                    {% for error in form.content.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {# --- پایان فیلد محتوا --- #}
+
+                {# --- فیلد آپلود فایل --- #}
+                <div class="form-group mb-3">
+                    <label for="{{ form.file_upload.id_for_label }}" class="form-label d-block">
+                        <span>فایل ضمیمه:</span>
+                        <span class="text-muted ms-2">(حداکثر {{ max_file_size_mb|floatformat:0 }} مگابایت)</span>
+                        <br>
+                        <span>فرمت‌های مجاز:</span>
+                        {# آیکون‌ها توسط جاوا اسکریپت در اینجا قرار خواهند گرفت #}
+                        <span class="allowed-icons" id="form-label-allowed-icons"></span>
+                    </label>
+
+                    <div class="custom-file-upload-wrapper">
+                        <input type="file"
+                               name="{{ form.file_upload.name }}"
+                               id="{{ form.file_upload.id_for_label }}"
+                               class="{% if form.file_upload.errors %} is-invalid{% endif %}"
+                               {% if form.file_upload.field.required %}required{% endif %}
+                               accept="{{ accept_file_types }}"
+                        >
+                        <label for="{{ form.file_upload.id_for_label }}" class="custom-file-upload-button">
+                            انتخاب فایل
+                        </label>
+                        <span id="selected-file-name-{{ form.file_upload.id_for_label }}" class="selected-file-name">هیچ فایلی انتخاب نشده است.</span>
+                    </div>
+                    <div id="file-validation-feedback-{{ form.file_upload.id_for_label }}" class="file-validation-feedback"></div>
+                    {% for error in form.file_upload.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                    {% if form.non_field_errors %}
+                        {% for error in form.non_field_errors %}
+                             <div class="alert alert-danger mt-2">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                {# --- پایان فیلد آپلود فایل --- #}
+
+                <button type="submit" class="btn btn-primary">افزودن مورد</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // نقشه آیکون‌ها بر اساس *پسوند فایل* (برای لیست فایل‌های آپلود شده)
+    const JS_FILE_EXTENSION_ICON_MAP = {
+        "pdf": ["fas fa-file-pdf", "pdf"],
+        "doc": ["fas fa-file-word", "word"],
+        "docx": ["fas fa-file-word", "word"],
+        "txt": ["fas fa-file-alt", "text"],
+        "jpg": ["fas fa-file-image", "image"],
+        "jpeg": ["fas fa-file-image", "image"],
+        "png": ["fas fa-file-image", "image"],
+        "zip": ["fas fa-file-archive", "archive"],
+        "rar": ["fas fa-file-archive", "archive"],
+        "xls": ["fas fa-file-excel", "excel"],
+        "xlsx": ["fas fa-file-excel", "excel"],
+        // "default" key is not used here, handled by JS_DEFAULT_ICON_CLASSES
+    };
+    const JS_DEFAULT_ICON_CLASSES = ["fas fa-file", "default"]; // برای فایل‌های بدون پسوند یا ناشناس
+
+    // تابع برای گرفتن کلاس‌های آیکون بر اساس نام فایل (برای لیست فایل‌های آپلود شده)
+    function getFileIconClassesByExtension(filename) {
+        if (!filename || filename.length === 0) {
+            console.warn("getFileIconClassesByExtension: Filename is null or empty, returning default.");
+            return [...JS_DEFAULT_ICON_CLASSES]; // Return a copy
+        }
+        const lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex === -1 || lastDotIndex === 0 || lastDotIndex === filename.length - 1) {
+            console.warn(`getFileIconClassesByExtension: Filename "${filename}" has no discernible extension. Returning default.`);
+            return [...JS_DEFAULT_ICON_CLASSES];
+        }
+        const fileExtension = filename.substring(lastDotIndex + 1).toLowerCase();
+        // console.log(`getFileIconClassesByExtension: Filename "${filename}", Extracted Extension: "${fileExtension}"`);
+        if (JS_FILE_EXTENSION_ICON_MAP.hasOwnProperty(fileExtension)) {
+            // console.log(`getFileIconClassesByExtension: Found mapping for "${fileExtension}":`, JS_FILE_EXTENSION_ICON_MAP[fileExtension]);
+            return [...JS_FILE_EXTENSION_ICON_MAP[fileExtension]]; // Return a copy
+        }
+        // console.warn(`getFileIconClassesByExtension: No mapping for "${fileExtension}", returning default.`);
+        return [...JS_DEFAULT_ICON_CLASSES];
+    }
+
+    // نقشه آیکون‌ها بر اساس *نوع عمومی فایل* (برای لیبل فرم انتخاب فایل)
+    const JS_FORM_LABEL_ICON_TYPE_MAP = {
+        "pdf": ["fas fa-file-pdf", "pdf"],
+        "word": ["fas fa-file-word", "word"],
+        "text": ["fas fa-file-alt", "text"],
+        "image": ["fas fa-file-image", "image"],
+        "archive": ["fas fa-file-archive", "archive"],
+        "excel": ["fas fa-file-excel", "excel"],
+        "default": ["fas fa-file", "default"]
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('{{ form.file_upload.id_for_label }}');
+        const selectedFileNameSpan = document.getElementById('selected-file-name-{{ form.file_upload.id_for_label }}');
+        const validationFeedbackDiv = document.getElementById('file-validation-feedback-{{ form.file_upload.id_for_label }}');
+        const submitButton = document.querySelector('#km-add-form button[type="submit"]');
+
+        // مقادیر از کانتکست جنگو
+        const ALLOWED_EXTENSIONS_JS = [{% for ext in allowed_extensions %}"{{ ext|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+        const MAX_FILE_SIZE_JS = {{ max_file_size_bytes|default:10485760 }};
+
+        // console.log("ALLOWED_EXTENSIONS_JS:", ALLOWED_EXTENSIONS_JS);
+        // console.log("MAX_FILE_SIZE_JS:", MAX_FILE_SIZE_JS);
+
+        // --- ۱. منطق افزودن آیکون به آیتم‌های لیست موجود (این بخش قبلا درست شده) ---
+        const fileItemListElements = document.querySelectorAll('.km-file-link.js-file-item');
+        // console.log("Found file item elements for list:", fileItemListElements.length);
+        fileItemListElements.forEach(itemElement => {
+            const rawFilename = itemElement.dataset.filename;
+            if (!rawFilename || rawFilename.trim().length === 0) {
+                // console.warn("Filename is missing for itemElement:", itemElement);
+                const [defaultFaClass, defaultColorClass] = JS_DEFAULT_ICON_CLASSES;
+                const iconEl = document.createElement('i');
+                if (defaultFaClass) defaultFaClass.split(' ').forEach(cls => { if (cls) iconEl.classList.add(cls); });
+                iconEl.classList.add('file-icon', defaultColorClass);
+                const link = itemElement.querySelector('a');
+                if (link) { itemElement.insertBefore(iconEl, link); } else { itemElement.appendChild(iconEl); }
+                return; 
+            }
+            const filename = rawFilename.trim();
+            const [faClass, colorClass] = getFileIconClassesByExtension(filename); // استفاده از تابع جدید
+            const iconElement = document.createElement('i');
+            if (faClass) faClass.split(' ').forEach(cls => { if (cls) iconElement.classList.add(cls); });
+            iconElement.classList.add('file-icon', colorClass);
+            const downloadLink = itemElement.querySelector('a');
+            if (downloadLink) { itemElement.insertBefore(iconElement, downloadLink); } else { itemElement.appendChild(iconElement); }
+        });
+
+        // --- ۲. منطق افزودن آیکون‌ها به لیبل فرم (بخش جدید و تمرکز اصلی) ---
+        const formLabelAllowedIconsSpan = document.getElementById('form-label-allowed-icons');
+        // icon_types از کانتکست جنگو ('pdf', 'word', 'text', 'image', 'archive', 'excel', 'default')
+        const iconTypesForLabelDisplay = [{% for type in icon_types %}"{{ type.0|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+        const iconTypesTooltip = [{% for type in icon_types %}"{{ type.1|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+        
+        // console.log("iconTypesForLabelDisplay:", iconTypesForLabelDisplay);
+
+        if (formLabelAllowedIconsSpan) {
+            i = 0
+            iconTypesForLabelDisplay.forEach(iconTypeKey => {
+                let iconData = JS_FORM_LABEL_ICON_TYPE_MAP[iconTypeKey];
+
+                if (!iconData) {
+                    console.warn(`Form label icon: No mapping in JS_FORM_LABEL_ICON_TYPE_MAP for icon type "${iconTypeKey}", using default.`);
+                    iconData = JS_FORM_LABEL_ICON_TYPE_MAP["default"] || [...JS_DEFAULT_ICON_CLASSES];
+                }
+                
+                // console.log(`Form label icon: Type "${iconTypeKey}", Data:`, iconData);
+
+                if (iconData && iconData.length === 2) {
+                    const faClass = iconData[0];
+                    const colorClass = iconData[1];
+                    const iconElement = document.createElement('i');
+
+                    if (faClass && typeof faClass === 'string') {
+                        faClass.split(' ').forEach(cls => {
+                            if (cls) iconElement.classList.add(cls);
+                        });
+                    }
+                    iconElement.classList.add('file-icon', colorClass); // استایل CSS از .form-label .allowed-icons i.file-icon اعمال می‌شود
+                    iconElement.title = iconTypesTooltip[i];
+
+                    formLabelAllowedIconsSpan.appendChild(iconElement);
+                } else {
+                    console.error(`Form label icon: Invalid iconData for type "${iconTypeKey}":`, iconData);
+                }
+                i++;
+            });
+            i = 0;
+        } else {
+            console.warn("Element with ID 'form-label-allowed-icons' not found.");
+        }
+
+        // --- ۳. Event Listener برای فیلد انتخاب فایل در فرم (اعتبارسنجی و نمایش نام فایل) ---
+        if (fileInput) {
+            fileInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                validationFeedbackDiv.textContent = ''; // این خطوط را برای کامل بودن اضافه کردم
+                validationFeedbackDiv.className = 'file-validation-feedback';
+                if (submitButton) submitButton.disabled = false;
+
+                if (file) {
+                    let displayFileName = file.name;
+                    const maxLength = 15; // حداکثر طول نام فایل برای نمایش، مثلا ۱۵ یا هر عددی که می‌خواهید
+
+                    if (displayFileName.length > maxLength) {
+                        // اگر نام فایل طولانی‌تر از maxLength بود، آن را خلاصه کن
+                        // (maxLength - 3) کاراکتر از ابتدا + "..."
+                        displayFileName = displayFileName.substring(0, maxLength - 3) + "...";
+                    }
+                    selectedFileNameSpan.textContent = file.name;
+                    let isValid = true;
+                    let errorMessage = '';
+
+                    if (file.size > MAX_FILE_SIZE_JS) {
+                        errorMessage = "حجم فایل ضمیمه نباید بیشتر از " + (MAX_FILE_SIZE_JS / (1024 * 1024)).toFixed(0) + " مگابایت باشد.";
+                        isValid = false;
+                    }
+
+                    if (isValid) {
+                        const fileNameOnly = file.name; // file.name is just the name, not full path
+                        const lastDot = fileNameOnly.lastIndexOf('.');
+                        const fileNameExt = (lastDot === -1 || lastDot === 0 || lastDot === fileNameOnly.length - 1) ? "" : fileNameOnly.substring(lastDot + 1).toLowerCase();
+                        
+                        if (!ALLOWED_EXTENSIONS_JS.includes(fileNameExt)) {
+                            errorMessage = "فرمت فایل ضمیمه مجاز نیست. فرمت‌های مجاز: " + ALLOWED_EXTENSIONS_JS.join(", ") + ".";
+                            isValid = false;
+                        }
+                    }
+
+                    if (!isValid) {
+                        validationFeedbackDiv.textContent = errorMessage;
+                        validationFeedbackDiv.classList.add('text-danger');
+                        if (submitButton) submitButton.disabled = true;
+                    } else {
+                        validationFeedbackDiv.textContent = 'فایل معتبر است.';
+                        validationFeedbackDiv.classList.add('text-success');
+                    }
+                } else {
+                    selectedFileNameSpan.textContent = 'هیچ فایلی انتخاب نشده است.';
+                    if (submitButton) submitButton.disabled = false;
+                }
+            });
+        }
+
+        // --- ۴. جلوگیری از ارسال فرم در صورت غیرفعال بودن دکمه ---
+        const kmForm = document.getElementById('km-add-form');
+        if (kmForm && submitButton) {
+            kmForm.addEventListener('submit', function(event) {
+                if (submitButton.disabled) {
+                    event.preventDefault();
+                    if (validationFeedbackDiv.textContent === '' || !validationFeedbackDiv.classList.contains('text-danger')) {
+                        validationFeedbackDiv.textContent = "لطفاً خطاهای مربوط به فایل را برطرف کنید یا یک فایل معتبر انتخاب کنید.";
+                        validationFeedbackDiv.classList.remove('text-success');
+                        validationFeedbackDiv.classList.add('text-danger');
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

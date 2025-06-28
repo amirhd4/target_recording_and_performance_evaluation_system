@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}
+    پروژه ها و محصولات
+{% endblock %}
+
+{% block extra_css %}
+
+{% endblock %}
+
+{% block content %}
+    <div class="container mb-3">
+        {#    TODO: Change date time to dynamic mode #}
+        <a href="?year={{ summary_data.jdate.0 }}&month={{ summary_data.jdate.1 }}&export=excel" class="btn btn-outline-success">
+            <i class="fas fa-file-excel me-2"></i> بارگیری فایل اکسل
+        </a>
+    </div>
+    <div class="container">
+        <div class="card shadow rounded-4">
+            <div class="card-header bg-primary text-white fs-5 fw-bold">
+                محصولات تولید شده
+            </div>
+            <div class="table-responsive" style="overflow-y: auto; max-height: 500px;">
+                <table class="table table-bordered table-striped text-center align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>نام پروژه</th>
+                            <th>نام محصول</th>
+                            <th>نام کاربر</th>
+                            <th>تعداد تولید شده</th>
+                        </tr>
+                    </thead>
+                    {% for p in products %}
+                        <tr>
+                            <td>
+                                {{ forloop.counter }}
+                            </td>
+                            <td>
+                                {{ p.project.name }}
+                            </td>
+                            <td>
+                                {{ p.product.name }}
+                            </td>
+                            <td>
+                                {{ p.user.first_name }} {{ p.user.last_name }}
+                            </td>
+                            <td>
+                                {{ p.quantity }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

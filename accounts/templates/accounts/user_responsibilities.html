@@ -1,0 +1,348 @@
+{# در فایل accounts/templates/accounts/user_responsibilities.html #}
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+{% load custom_filters %}
+{% load jformat %}
+
+{% block title %}{% trans "شرح وظایف و آیین‌نامه‌ها" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+   {# بخش جدید برای آیین‌نامه‌ها #}
+    <h2 class="mb-4">آیین‌نامه‌ها و دستورالعمل‌ها</h2>
+    {% if active_regulations %}
+        <div class="alert alert-info small" id="regulation-info-message" style="display: none;"></div>
+        <form id="regulationsForm">
+            {% csrf_token %} {# مهم برای امنیت درخواست‌های POST #}
+          <ul class="list-group mb-4">
+    {% for regulation in active_regulations %}
+        {% with ack_object=user_regulation_statuses|get_item:regulation.id %} {# <--- شروع بلوک with برای هر regulation #}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {# بلوک DEBUG شما می‌تواند اینجا بماند یا پس از رفع مشکل حذف شود #}
+{#                <div style="border: 1px dashed red; padding: 5px; margin: 5px; background-color: #f0f0f0;">#}
+{#                    <p><b>DEBUG INFO FOR: {{ regulation.title }} (ID: {{ regulation.id }})</b></p>#}
+{#                    <p>1. Status Object from Dict: <code>{{ ack_object }}</code></p> {# استفاده مستقیم از ack_object #}
+{#                    {% if ack_object %}#}
+{#                        <p>2. Is Read (ack_object.is_read): <code>{{ ack_object.is_read }}</code></p>#}
+{#                        <p>3. Read At (ack_object.read_at): <code>{{ ack_object.read_at|date:"Y-m-d H:i:s T" }}</code> (Raw: {{ ack_object.read_at }})</p>#}
+{#                        <p>4. Condition for CHECKED: <code>{% if ack_object and ack_object.is_read %}TRUE{% else %}FALSE{% endif %}</code></p>#}
+{#                    {% else %}#}
+{#                        <p style="color: red;">2. ack_object NOT FOUND in user_regulation_statuses for key {{ regulation.id }}</p>#}
+{#                    {% endif %}#}
+{#                </div>#}
+
+                <div> {# بخش اصلی نمایش اطلاعات آیین‌نامه #}
+                    <a href="{{ regulation.file.url }}" target="_blank" class="fw-bold">{{ regulation.title }}</a>
+                    {% if regulation.description %}
+                        <small class="d-block text-muted">{{ regulation.description }}</small>
+                    {% endif %}
+                    <small id="read-status-{{ regulation.id }}" class="text-muted d-block mt-1">
+                        {% if ack_object and ack_object.is_read %} {# <--- استفاده از ack_object #}
+                            خوانده شده در: {{ ack_object.read_at|jformat:"%Y/%m/%d %H:%M" }}
+                        {% else %}
+                            هنوز مطالعه نشده
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input regulation-checkbox"
+                           type="checkbox"
+                           role="switch"
+                           id="regulation-{{ regulation.id }}"
+                           data-regulation-id="{{ regulation.id }}"
+                           {% if ack_object and ack_object.is_read %}checked disabled{% endif %}> {# <--- استفاده از ack_object #}
+                    <label class="form-check-label" for="regulation-{{ regulation.id }}">مطالعه کردم</label>
+                </div>
+            </li>
+        {% endwith %} {# <--- پایان بلوک with #}
+    {% endfor %}
+</ul>
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="" id="confirmAllRegulationsCheckbox"
+                               {% if not all_current_regulations_individually_read or overall_acknowledgement_record.all_regulations_confirmed %}disabled{% endif %}>
+                        <label class="form-check-label fw-bold" for="confirmAllRegulationsCheckbox">
+                            همه آیین‌نامه‌های فوق را مطالعه کرده و مفاد آن را درک نموده‌ام.
+                        </label>
+                    <div id="overall-confirmation-static-message-container">
+                    {% if overall_acknowledgement_record.all_regulations_confirmed %}
+                        <p class="text-success mt-2 mb-0" id="overall-confirmation-static-message">
+                {#            <i class="bi bi-check-circle-fill"></i> شما قبلاً در تاریخ {{ overall_acknowledgement_record.confirmation_date|date:"Y/m/d H:i" }} مطالعه کلیه آیین‌نامه‌ها را تایید کرده‌اید.#}
+                            {% if not all_current_regulations_individually_read and total_active_regulations > 0 %}
+                                <br><span class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> توجه: آیین‌نامه‌های جدیدی اضافه شده یا وضعیت تغییر کرده است. لطفاً موارد جدید را مطالعه و مجدداً تایید کلی نمایید.</span>
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+                <div id="dynamic-warning-placeholder" class="mt-1"></div>
+                    </div>
+                    {% if overall_acknowledgement_record.all_regulations_confirmed %}
+                        <p class="text-success mt-2 mb-0">
+                            <i class="bi bi-check-circle-fill"></i> شما قبلاً در تاریخ {{ overall_acknowledgement_record.confirmation_date|jformat:"%Y/%m/%d %H:%M" }} مطالعه کلیه آیین‌نامه‌ها را تایید کرده‌اید.
+                            {% if not all_current_regulations_individually_read and total_active_regulations > 0 %}
+                                <br><span class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> توجه: آیین‌نامه‌های جدیدی اضافه شده یا وضعیت تغییر کرده است. لطفاً موارد جدید را مطالعه و مجدداً تایید کلی نمایید.</span>
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="justify-content-center text-center">
+                <button type="button" id="submitAllConfirmationBtn" class="btn btn-success btn-lg fs-6"{% if not all_current_regulations_individually_read or overall_acknowledgement_record.all_regulations_confirmed %}disabled{% endif %}>
+                    <i class="bi bi-check2-square"></i> ثبت نهایی تاییدیه آیین‌نامه‌ها
+                </button>
+            </div>
+            <div id="overall-confirmation-message" class="mt-3"></div>
+
+        </form>
+    {% else %}
+        <div class="alert alert-secondary" role="alert">
+            در حال حاضر هیچ آیین‌نامه فعالی برای نمایش وجود ندارد.
+        </div>
+    {% endif %}
+
+    <hr class="my-5">
+
+    <h1 class="mb-4">شرح وظایف شما</h1>
+    {% if responsibilities %}
+        <div class="row">
+            {% for responsibility in responsibilities %}
+                <div class="col-12 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold">{{ responsibility.responsibility_type }}</h5>
+                            {% if responsibility.order or responsibility.order == 0 %}
+                                <span class="badge bg-light text-primary ms-2">ترتیب: {{ responsibility.order|add:"1" }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">{{ responsibility.description|linebreaksbr }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            هنوز هیچ شرح وظیفه‌ای برای شما ثبت نشده است.
+        </div>
+    {% endif %}
+
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const regulationsCheckboxes = document.querySelectorAll('.regulation-checkbox');
+    const confirmAllCheckbox = document.getElementById('confirmAllRegulationsCheckbox');
+    const submitAllBtn = document.getElementById('submitAllConfirmationBtn');
+    const regulationInfoMessage = document.getElementById('regulation-info-message'); // برای پیام‌های موقت هر آیین‌نامه
+    const overallConfirmationMessage = document.getElementById('overall-confirmation-message'); // برای پیام‌های تایید کلی
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // یک مکان برای پیام‌های هشدار داینامیک مربوط به تایید کلی
+    // این المان را در HTML خود نزدیک به بخش تایید کلی اضافه کنید:
+    // <div id="dynamic-warning-placeholder" class="mt-1"></div>
+    const dynamicWarningPlaceholder = document.getElementById('dynamic-warning-placeholder');
+
+    function showMessage(element, message, type = 'info', duration = 5000) {
+        if (element) {
+            element.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                                ${message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                             </div>`;
+            element.style.display = 'block';
+            if (duration > 0) {
+                setTimeout(() => {
+                    // element.style.display = 'none'; element.innerHTML = ''; // اگر میخواهید محتوا کامل پاک شود
+                    // برای پاک شدن با انیمیشن بوت استرپ، فقط alert را پیدا کرده و remove کنید یا از طریق data-bs-dismiss عمل کنید
+                    const alertElement = element.querySelector('.alert');
+                    if (alertElement) {
+                        // bootstrap.Alert.getInstance(alertElement)?.close(); // اگر از طریق JS بوت استرپ میخواهید ببندید
+                        alertElement.classList.remove('show'); // برای fade out دستی
+                        setTimeout(() => { alertElement.remove(); if (!element.hasChildNodes()) element.style.display = 'none'; }, 150);
+                    }
+
+                }, duration);
+            }
+        }
+    }
+
+    regulationsCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function () { // `this` در اینجا به چک‌باکس اشاره دارد
+            const regulationId = this.dataset.regulationId;
+            const formData = new FormData();
+            formData.append('regulation_id', regulationId);
+
+            fetch("{% url 'toggle_regulation_read' %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': csrfToken }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // اگر پاسخ سرور خطای HTTP داشت (مثلا 400, 404, 500)
+                    return response.json().then(errData => {
+                        throw new Error(errData.error || `خطای سرور: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // 1. به‌روزرسانی وضعیت خود چک‌باکس (مهم!)
+                    this.checked = data.is_read;
+
+                    // 2. به‌روزرسانی متن "خوانده شده در تاریخ..."
+                    const readStatusEl = document.getElementById(`read-status-${regulationId}`);
+                    if (readStatusEl) {
+                        if (data.is_read && data.read_at) {
+                            readStatusEl.textContent = `خوانده شده در: ${new Date(data.read_at).toLocaleString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+                        } else {
+                            readStatusEl.textContent = 'هنوز مطالعه نشده';
+                        }
+                    }
+
+                    // 3. دریافت وضعیت تایید کلی که در زمان بارگذاری صفحه وجود داشته
+                    const pageLoadOverallConfirmed = {{ overall_acknowledgement_record.all_regulations_confirmed|yesno:"true,false" }};
+
+                    // 4. به‌روزرسانی وضعیت چک‌باکس "تایید کلی همه آیین‌نامه‌ها"
+                    if (data.all_current_individually_read) {
+                        // اگر سرور می‌گوید همه آیین‌نامه‌های فردی خوانده شده‌اند
+                        if (!pageLoadOverallConfirmed) {
+                            // و اگر تایید کلی هنوز (از زمان بارگذاری صفحه) انجام نشده، چک‌باکس تایید کلی را فعال کن
+                            confirmAllCheckbox.disabled = false;
+                            // خود چک‌باکس تایید کلی توسط کاربر باید تیک زده شود. ما فقط آن را فعال می‌کنیم.
+                        } else {
+                            // همه فردی‌ها خوانده شده و تایید کلی هم از قبل وجود داشته (یعنی وضعیت فعلی با تاییدیه قبلی سازگار است)
+                            confirmAllCheckbox.disabled = true; // غیرفعال نگه دار
+                            confirmAllCheckbox.checked = true;  // و تیک‌خورده نشان بده
+                        }
+                    } else {
+                        // اگر همه آیین‌نامه‌های فردی خوانده نشده‌اند
+                        confirmAllCheckbox.disabled = true;
+                        confirmAllCheckbox.checked = false; // حتما تیک آن را بردار
+                    }
+
+                    // 5. به‌روزرسانی وضعیت دکمه "ثبت نهایی تاییدیه"
+                    // این دکمه فقط زمانی فعال است که چک‌باکس تایید کلی، فعال (disabled=false) و تیک‌خورده (checked=true) باشد.
+                    if (!confirmAllCheckbox.disabled && confirmAllCheckbox.checked) {
+                        submitAllBtn.disabled = false;
+                    } else {
+                        submitAllBtn.disabled = true;
+                    }
+
+                    // 6. مدیریت پیام هشدار داینامیک (اگر تاییدیه کلی قبلی وجود داشته اما وضعیت تغییر کرده)
+                    if (dynamicWarningPlaceholder) {
+                        if (pageLoadOverallConfirmed && !data.all_current_individually_read) {
+                            // تایید کلی در زمان بارگذاری صفحه وجود داشته، اما حالا (پس از تغییر وضعیت یک آیتم) دیگر همه آیتم‌های فردی خوانده شده نیستند.
+                            dynamicWarningPlaceholder.innerHTML = `<div class="alert alert-warning mt-2" role="alert"><i class="bi bi-exclamation-triangle-fill"></i> توجه: وضعیت مطالعه آیین‌نامه‌ها تغییر کرده است. تاییدیه کلی پیشین شما ممکن است دیگر همه موارد جاری را پوشش ندهد. لطفاً موارد را بررسی و در صورت نیاز، مجدداً تایید کلی نمایید.</div>`;
+                        } else {
+                            dynamicWarningPlaceholder.innerHTML = ''; // پاک کردن هشدار اگر وضعیت سازگار است
+                        }
+                    }
+                     //showMessage(regulationInfoMessage, 'وضعیت با موفقیت به‌روز شد.', 'success', 3000);
+
+                } else { // data.success is false
+                    showMessage(regulationInfoMessage, `خطا در به‌روزرسانی: ${data.error || 'مشکلی پیش آمد.'}`, 'danger');
+                    this.checked = !this.checked; // برگرداندن وضعیت چک‌باکس به حالت قبل از کلیک کاربر، چون عملیات ناموفق بود
+                }
+            })
+            .catch(error => {
+                showMessage(regulationInfoMessage, `خطا در ارتباط با سرور: ${error.message || error}`, 'danger');
+                this.checked = !this.checked; // برگرداندن وضعیت چک‌باکس
+            });
+        });
+    });
+
+    // رویداد تغییر برای چک‌باکس "تایید کلی" برای فعال/غیرفعال کردن دکمه ثبت نهایی
+    if (confirmAllCheckbox) {
+        confirmAllCheckbox.addEventListener('change', function() {
+            if (!this.disabled && this.checked) {
+                submitAllBtn.disabled = false;
+            } else {
+                submitAllBtn.disabled = true;
+            }
+        });
+    }
+
+    // رویداد کلیک برای دکمه "ثبت نهایی تاییدیه"
+    if (submitAllBtn) {
+        submitAllBtn.addEventListener('click', function () {
+            if (confirmAllCheckbox.disabled || !confirmAllCheckbox.checked) {
+                showMessage(overallConfirmationMessage, 'لطفاً ابتدا گزینه "همه آیین‌نامه‌های فوق را مطالعه کرده و مفاد آن را درک نموده‌ام." را فعال و علامت بزنید.', 'warning');
+                return;
+            }
+
+            this.disabled = true; // غیرفعال کردن دکمه برای جلوگیری از کلیک‌های متعدد
+            const btnOriginalText = this.innerHTML;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> در حال ثبت...';
+
+
+            fetch("{% url 'confirm_all_regulations' %}", {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken }
+            })
+            .then(response => {
+                this.disabled = false; // فعال کردن مجدد دکمه
+                this.innerHTML = btnOriginalText; // بازگرداندن متن اصلی دکمه
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.error || `خطای سرور: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    regulationsCheckboxes.forEach(checkbox => {
+                        checkbox.disabled = true;
+                    });
+                    showMessage(overallConfirmationMessage, data.message || 'تاییدیه کلی شما با موفقیت ثبت شد.', 'success', 0); // پیام دائمی تر
+                    // به‌روزرسانی UI برای انعکاس تایید کلی
+                    confirmAllCheckbox.disabled = true; // چک‌باکس تایید کلی غیرفعال می‌شود
+                    // confirmAllCheckbox.checked باید true باقی بماند
+                    submitAllBtn.disabled = true;   // دکمه ثبت نهایی هم غیرفعال می‌شود
+
+                    // حذف یا به‌روزرسانی پیام هشدار داینامیک چون دیگر نیازی به آن نیست
+                    if (dynamicWarningPlaceholder) dynamicWarningPlaceholder.innerHTML = '';
+
+                    // نمایش پیام دائمی تایید در محل مناسب (جایگزین یا تکمیل پیام قبلی)
+                    const overallAckStaticMessageContainer = document.getElementById('overall-confirmation-static-message-container'); // یک div دور p قبلی بگذارید
+                    if (overallAckStaticMessageContainer) {
+                         overallAckStaticMessageContainer.innerHTML = `
+                            <p class="text-success mt-2 mb-0">
+                                <i class="bi bi-check-circle-fill"></i> شما در تاریخ ${new Date(data.confirmation_date).toLocaleString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} مطالعه کلیه آیین‌نامه‌ها را تایید کرده‌اید.
+                            </p>`;
+                    }
+                    // برای اطمینان از نمایش دقیق همه تغییرات وضعیت (مخصوصا اگر منطق پیچیده‌ای در سرور برای نمایش اولیه وجود دارد)
+                    // گاهی یک رفرش صفحه پس از عملیات موفقیت آمیز بزرگ، ساده‌ترین راه است:
+                    // setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    showMessage(overallConfirmationMessage, `خطا در ثبت تاییدیه: ${data.error || 'مشکلی پیش آمد.'}`, 'danger');
+                }
+            })
+            .catch(error => {
+                this.disabled = false; // فعال کردن مجدد دکمه در صورت خطا
+                this.innerHTML = btnOriginalText;
+                showMessage(overallConfirmationMessage, `خطا در ارتباط برای ثبت تاییدیه: ${error.message || error}`, 'danger');
+            });
+        });
+    }
+
+    // برای اطمینان از وضعیت اولیه صحیح دکمه ثبت نهایی بر اساس بارگذاری صفحه
+    // (این کار توسط خود تمپلیت جنگو هم با disabled کردن اولیه انجام می‌شود، اما محض اطمینان)
+    if (confirmAllCheckbox && submitAllBtn) {
+        if (!confirmAllCheckbox.disabled && confirmAllCheckbox.checked) {
+            submitAllBtn.disabled = false;
+        } else {
+            submitAllBtn.disabled = true;
+        }
+    }
+
+});
+</script>
+{% endblock %}

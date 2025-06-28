@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}ثبت هدف روزانه{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="card-header bg-primary text-white text-center">
+                        <h4 class="mb-3">ثبت هدف روزانه</h4>
+                        <div class="mb-3 d-flex justify-content-center align-items-center">
+                            <i class="fa-solid fa-calendar-days me-3 text-warning"></i>
+                            <label for="date"></label>
+                            <select class="form-select" id="date" name="date">
+                                {% for d in dates %}
+                                    <option value="{{ d|date:"Y/m/d" }}">{{ d|date:"Y/m/d" }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if messages %}
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="full_name" class="form-label">انتخاب نام</label>
+                            <select class="form-select" id="full_name" name="full_name">
+                                <option value=""></option>
+                                {% if not user.is_authenticated %}
+                                    {% for name in hardcoded_names %}
+                                        <option value="{{ name }}">{{ name }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    {# اگر کاربر لاگین کرده باشد، نام او را انتخاب می‌کند #}
+                                    <option value="{{ user.get_full_name }}" selected> {{ user.get_full_name }}</option>
+                                {% endif %}
+                            </select>
+                        </div>
+
+                        {# --- منطق نمایش فرم بر اساس دسترسی کاربر --- #}
+                        {% if user_can_access_project_form %}
+                            <div class="mb-3">
+                                <label for="choose_project" class="form-label">انتخاب پروژه</label>
+                                <select class="form-select" id="choose_project">
+                                    <option value="">{% trans "پروژه‌ای را انتخاب کنید" %}</option>
+                                    {% for project in projects %}
+                                        <option value="{{ project.id }}">{{ project.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div id="selected-projects-container">
+                                {# فیلدهای پروژه‌های انتخاب شده اینجا بارگذاری می‌شوند #}
+                            </div>
+
+                            <hr>
+                            <div id="dynamic-fields-container">
+                                {# فیلدهای داینامیک اضافه شده توسط کاربر اینجا قرار می‌گیرند (اگر همچنان نیاز دارید) #}
+                            </div>
+                            {#  TODO: Change this button mode #}
+                            <button type="button" id="add-field-btn" class="btn btn-outline-primary btn-sm mb-3">
+                                <i class="fa fa-plus"></i> {% trans "افزودن آیتم جدید" %}
+                            </button>
+                            <hr>
+                            <div class="mb-3">
+                                <label for="extra_notes" class="form-label">توضیحات تکمیلی (اختیاری)</label>
+                                <textarea class="form-control" id="extra_notes" name="extra_notes" rows="3"></textarea>
+                            </div>
+                        {% else %}
+                            {# --- فرم استاندارد (برای سایر کاربران) --- #}
+                            <div id="standard-form-fields">
+                                <div class="mb-3">
+                                    <label for="target_text" class="form-label">هدف امروز شما چیست؟</label>
+                                    <textarea class="form-control" id="target_text" name="target_text" rows="4" required>{{ target_text }}</textarea>
+                                </div>
+                                <div class="mb-3 d-flex align-items-center gap-2">
+                                    <span data-bs-toggle="tooltip" data-bs-placement="top" title="در صورت انتخاب این گزینه، هدف شما در کوکی مرورگر ذخیره می‌شود.">
+                                        <i class="fal fa-lightbulb text-warning" style="cursor: pointer;"></i>
+                                    </span>
+                                    <label for="save_cookie"></label><input type="checkbox" id="save_cookie" name="save_cookie" value="1" class="form-check-input" {{ target_text|yesno:'checked,'}}/>
+                                    <label for="save_cookies" class="form-label mb-0">ذخیره هدف</label>
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% if  request.user.id|in_list:"1, 55, 61" %}
+                            <div class="mb-4">
+                                <button class="btn btn-outline-primary" id="send_to_igap_group_link">
+                                    <i class="fa-regular fa-paper-plane"></i>
+                                    ارسال اهداف به آیگپ
+                                </button>
+                            </div>
+                        {% endif %}
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success btn-l px-5">ثبت هدف</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#full_name').select2({
+        placeholder: "{% trans "نامی را انتخاب کنید" %}",
+        allowClear: true,
+        language: {
+            noResults: function() { return "{% trans "موردی یافت نشد!" %}"; },
+            searching: function() { return "{% trans "در حال جستجو..." %}"; }
+        }
+    });
+
+    const $chooseProjectSelect = $('#choose_project');
+    $chooseProjectSelect.select2({
+        placeholder: "{% trans "پروژه مد نظر را انتخاب کنید" %}",
+        allowClear: true,
+        language: {
+            noResults: function() { return "{% trans "موردی یافت نشد!" %}"; },
+            searching: function() { return "{% trans "در حال جستجو..." %}"; }
+        }
+    });
+
+    // هندلر تغییر انتخاب پروژه
+    $chooseProjectSelect.on('change', function() {
+        const projectId = $(this).val();
+        if (projectId) {
+            // غیرفعال کردن گزینه انتخاب شده برای جلوگیری از اضافه شدن مجدد
+            $chooseProjectSelect.find(`option[value="${projectId}"]`).prop('disabled', true);
+            $chooseProjectSelect.val(null).trigger('change'); // ریست کردن انتخاب در Select2
+
+            // درخواست AJAX برای دریافت فیلدهای پروژه
+            $.ajax({
+                url: `/targets/get_project_fields/${projectId}/`, // اطمینان حاصل کنید این URL در urls.py شما تعریف شده است
+                method: 'GET',
+                success: function(response) {
+                    $('#selected-projects-container').append(response);
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error loading project fields:", error);
+                    alert("{% trans "خطا در بارگذاری فیلدهای پروژه. لطفا دوباره تلاش کنید." %}");
+                    // در صورت خطا، گزینه را دوباره فعال کنید
+                    $chooseProjectSelect.find(`option[value="${projectId}"]`).prop('disabled', false);
+                }
+            });
+        }
+    });
+
+    // هندلر حذف بلوک پروژه (با استفاده از event delegation)
+    $('#selected-projects-container').on('click', '.remove-project-block', function() {
+        const projectIdToRemove = $(this).data('project-id');
+        $(`#project-block-${projectIdToRemove}`).remove();
+        // فعال کردن مجدد گزینه در Select2
+        $chooseProjectSelect.find(`option[value="${projectIdToRemove}"]`).prop('disabled', false);
+    });
+
+    // --- کد موجود برای مدیریت فیلدهای داینامیک (اگر همچنان نیاز دارید) ---
+    let fieldIndex = 0;
+    $('#add-field-btn').click(function() {
+        fieldIndex++;
+        const newFieldHtml = `
+            <div class="dynamic-field-group row mb-3 align-items-center" id="field-group-${fieldIndex}">
+                <div class="col-5">
+                    <input type="text" name="custom_title" class="form-control" placeholder="{% trans "عنوان (مثلا: محصول ۳)" %}">
+                </div>
+                <div class="col-5">
+                    <input type="text" name="custom_value" class="form-control" placeholder="{% trans "مقدار (مثلا: ۷ عدد)" %}">
+                </div>
+                <div class="col-2 text-start">
+                    <button type="button" class="btn btn-danger btn-sm remove-field-btn" data-remove-target="#field-group-${fieldIndex}">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        $('#dynamic-fields-container').append(newFieldHtml);
+    });
+
+    $('body').on('click', '.remove-field-btn', function() {
+        const targetSelector = $(this).data('remove-target');
+        $(targetSelector).remove();
+    });
+
+    // این بخش را تغییر نمی‌دهیم، چون منطق ارسال به آی‌گپ از ثبت هدف جداست.
+    // اما توجه داشته باشید که اسکریپت `push_targets_with_date.py` باید بتواند
+    // محتوای جدید `Target.content` را که شامل جزئیات پروژه و محصول است، پردازش کند.
+    $('#send_to_igap_group_link').click(function(e) {
+        e.preventDefault();
+
+        const csrftoken = document.querySelector('meta[name="csrf-token"]').content;
+
+        $.ajax({
+            url: '{% url 'send_to_igap_group' %}',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function(response) {
+                alert('اهداف با موفقیت به گروه ارسال شدند!');
+            },
+            error: function(xhr, status, error) {
+                alert('خطا در ارسال اهداف!');
+                console.error(error);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
