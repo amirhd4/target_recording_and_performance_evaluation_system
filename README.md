@@ -17,7 +17,7 @@
 
 - Python
 - Django
-- SQLite (یا هر دیتابیس دیگه‌ای قابل تنظیمه)
+- Postgresql
 
 ## نحوه اجرا
 
