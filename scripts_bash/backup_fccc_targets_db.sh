@@ -3,7 +3,7 @@ DB_USER="postgres"
 DB_HOST="localhost"
 DB_PORT="5432"
 
-export PGPASSWORD="ksjhf47826*QW&^21938yKJASDH#^$&"
+export PGPASSWORD=""
 
 BACKUP_DIR="/home/amirz/fccc_targets/db_backup" # مسیری که می خواهید فایل های پشتیبان در آن ذخیره شوند
 # مثال: /var/backups/postgres/your_db_name
